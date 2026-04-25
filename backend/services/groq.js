@@ -37,4 +37,4 @@ export function getGroqSdk() {
 }
 
 export const FAST_MODEL = "llama-3.1-8b-instant";
-export const LARGE_MODEL = "qwen/qwen3-32b"; // TODO: revert to "llama-3.3-70b-versatile" when quota resets
+export const LARGE_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"; // TODO: revert to "llama-3.3-70b-versatile" when quota resets

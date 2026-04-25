@@ -12,9 +12,10 @@ router.post("/", async (req, res) => {
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
     res.flushHeaders();
 
-    const send = (data) => res.write(`data: ${JSON.stringify(data)}\n\n`);
+    const send = (data) => { res.write(`data: ${JSON.stringify(data)}\n\n`); if (res.flush) res.flush(); };
 
     try {
         send({ stage: "ingesting", message: "Reading your document..." });
@@ -33,10 +34,12 @@ router.post("/", async (req, res) => {
                     res.write(line + "\n\n");
                 }
             });
+            if (res.flush) res.flush();
         });
 
         agentRes.data.on("end", () => {
             res.write("data: {\"stage\":\"done\"}\n\n");
+            if (res.flush) res.flush();
             res.end();
         });
 
