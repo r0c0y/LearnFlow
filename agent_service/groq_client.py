@@ -5,9 +5,9 @@ from dotenv import load_dotenv
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "../.env"))
 
-HEAVY_MODEL = "llama-3.3-70b-versatile"
+HEAVY_MODEL = "qwen/qwen3-32b"  # TODO: revert to "llama-3.3-70b-versatile" when quota resets
 FAST_MODEL  = "llama-3.1-8b-instant"
-LONG_MODEL  = "llama-4-scout-17b-16e-instruct"
+LONG_MODEL  = "meta-llama/llama-4-scout-17b-16e-instruct"
 VOICE_MODEL = "whisper-large-v3"
 
 client = OpenAI(
@@ -41,6 +41,16 @@ def call_llm(
         return response.choices[0].message.content
     except Exception as e:
         error_str = str(e)
+        # On json_validate_failed (400), retry without json_mode
+        if "json_validate_failed" in error_str or ("400" in error_str and "json" in error_str.lower()):
+            print(f"JSON mode failed on {model_override}, retrying without json_mode")
+            kwargs.pop("response_format", None)
+            try:
+                response = client.chat.completions.create(**kwargs)
+                return response.choices[0].message.content
+            except Exception as e2:
+                print(f"Retry without json_mode also failed: {e2}")
+                raise e2
         # On rate limit (429), fall back to a smaller/faster model
         if "429" in error_str or "rate_limit" in error_str.lower():
             fallback = FAST_MODEL if model_override != FAST_MODEL else LONG_MODEL
