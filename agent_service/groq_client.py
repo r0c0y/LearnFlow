@@ -40,6 +40,18 @@ def call_llm(
         response = client.chat.completions.create(**kwargs)
         return response.choices[0].message.content
     except Exception as e:
+        error_str = str(e)
+        # On rate limit (429), fall back to a smaller/faster model
+        if "429" in error_str or "rate_limit" in error_str.lower():
+            fallback = FAST_MODEL if model_override != FAST_MODEL else LONG_MODEL
+            print(f"Rate limited on {model_override}, falling back to {fallback}")
+            try:
+                kwargs["model"] = fallback
+                response = client.chat.completions.create(**kwargs)
+                return response.choices[0].message.content
+            except Exception as e2:
+                print(f"Fallback model {fallback} also failed: {e2}")
+                raise e2
         print(f"Error calling LLM on {model_override}: {e}")
         raise e
 
