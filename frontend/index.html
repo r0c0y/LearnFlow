@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml"
+    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='50' fill='%237C3AED'/><text y='.9em' font-size='60' x='22' fill='white' font-weight='700'>L</text></svg>" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description"
+    content="LearnFlow — AI-powered adaptive learning platform. Ingest any content, generate structured lessons, and test your knowledge." />
+  <title>LearnFlow — AI-Powered Learning</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet" />
+  <!-- Pyodide for in-browser Python execution -->
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
+  <script>
+    async function initPyodide() {
+      try {
+        window.pyodide = await loadPyodide();
+        console.log("✅ Pyodide loaded");
+      } catch (e) {
+        console.warn("Pyodide failed to load (code execution disabled):", e.message);
+      }
+    }
+    // Defer until after page paint so it doesn't block UI
+    window.addEventListener("load", initPyodide);
+  </script>
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+
+</html>

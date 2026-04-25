@@ -1,0 +1,53 @@
+import express from "express";
+import axios from "axios";
+
+const router = express.Router();
+
+/**
+ * POST /api/generate
+ * Streams SSE progress from the Python agent pipeline.
+ * Body: full pipeline state object
+ */
+router.post("/", async (req, res) => {
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.flushHeaders();
+
+    const send = (data) => res.write(`data: ${JSON.stringify(data)}\n\n`);
+
+    try {
+        send({ stage: "ingesting", message: "Reading your document..." });
+
+        const agentRes = await axios.post(
+            `${process.env.AGENT_SERVICE_URL}/pipeline/generate`,
+            req.body,
+            { responseType: "stream", timeout: 300000 }
+        );
+
+        agentRes.data.on("data", (chunk) => {
+            const raw = chunk.toString("utf8");
+            // Forward each SSE line as-is
+            raw.split("\n").forEach((line) => {
+                if (line.startsWith("data:")) {
+                    res.write(line + "\n\n");
+                }
+            });
+        });
+
+        agentRes.data.on("end", () => {
+            res.write("data: {\"stage\":\"done\"}\n\n");
+            res.end();
+        });
+
+        agentRes.data.on("error", (err) => {
+            send({ stage: "error", message: err.message });
+            res.end();
+        });
+    } catch (err) {
+        send({ stage: "error", message: err.message });
+        res.end();
+    }
+});
+
+export default router;

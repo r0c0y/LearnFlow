@@ -1,0 +1,26 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "LearnFlow backend API",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node --env-file=../.env server.js",
+    "dev": "node --watch --env-file=../.env server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@libsql/client": "^0.17.3",
+    "axios": "^1.15.2",
+    "cheerio": "^1.2.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "groq-sdk": "^1.1.2",
+    "multer": "^2.1.1",
+    "openai": "^6.34.0",
+    "uuid": "^14.0.0"
+  }
+}
