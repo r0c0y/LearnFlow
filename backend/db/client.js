@@ -15,8 +15,8 @@ function getClient() {
 
   const url = process.env.TURSO_DATABASE_URL;
   const authToken = process.env.TURSO_AUTH_TOKEN;
-  console.log('URL:',url)
-  console.log(authToken)
+
+
 
 
   if (!url || url === "undefined" || url.trim() === "") {

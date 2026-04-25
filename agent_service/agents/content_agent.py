@@ -62,8 +62,7 @@ def run_content_agent(state: dict) -> dict:
         chunk_text = "\n\n".join(relevant_chunks) if relevant_chunks else "\n\n".join([c for c in list(chunk_map.values())[:3]])
         model = choose_model(chunk_text)
 
-        for chunk_idx, chunk_text in enumerate(chunks):
-            user_msg = f"""
+        user_msg = f"""
 Generate complete lesson content for:
 Blueprint: {json.dumps(lesson_bp, indent=2)}
 
@@ -73,10 +72,10 @@ Source material to teach from:
 Make the explanation thorough, engaging, and pedagogically sound.
 If this is a coding topic, include real runnable code examples.
 """
-            raw = call_llm(model, CONTENT_SYSTEM, user_msg, max_tokens=4000)
-            lesson = json.loads(raw)
-            
-            new_lessons.append(lesson)
+        raw = call_llm(model, CONTENT_SYSTEM, user_msg, max_tokens=4000)
+        lesson_content = json.loads(raw)
+
+        new_lessons.append(lesson_content)
 
     state["lessons"] = new_lessons
     return state

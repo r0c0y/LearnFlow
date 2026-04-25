@@ -148,9 +148,10 @@ class AdvisorRequest(BaseModel):
 
 @app.post("/advisor/analyze")
 async def analyze_input(req: AdvisorRequest):
-    raw = call_llm(
-        HEAVY_MODEL,
-        """You are an expert instructional designer analyzing a learning request.
+    try:
+        raw = call_llm(
+            HEAVY_MODEL,
+            """You are an expert instructional designer analyzing a learning request.
 Return JSON:
 {
   "topic_name": "detected topic",
@@ -161,10 +162,14 @@ Return JSON:
   "focused_angles": ["focused subtopic 1", "focused subtopic 2", "focused subtopic 3"],
   "rationale": "one sentence explanation"
 }""",
-        f"Learning request: {req.content[:2000]}",
-        max_tokens=500,
-    )
-    return json.loads(raw)
+            f"Learning request: {req.content[:2000]}",
+            max_tokens=500,
+        )
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=502, detail="AI returned invalid JSON — please retry")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ─── Prerequisite detection ──────────────────────────────────────────────────
@@ -176,10 +181,11 @@ class PrereqRequest(BaseModel):
 
 @app.post("/advisor/prerequisites")
 async def detect_prerequisites(req: PrereqRequest):
-    history_text = "\n".join([f"{m['role']}: {m['content']}" for m in req.conversation_history])
-    raw = call_llm(
-        HEAVY_MODEL,
-        """You are an expert educator mapping prerequisite concepts.
+    try:
+        history_text = "\n".join([f"{m['role']}: {m['content']}" for m in req.conversation_history])
+        raw = call_llm(
+            HEAVY_MODEL,
+            """You are an expert educator mapping prerequisite concepts.
 Return JSON:
 {
   "all_prerequisites": [
@@ -188,10 +194,14 @@ Return JSON:
   "known_concepts": ["concept the student mentioned knowing"],
   "gap_concepts": ["concept the student did not mention"]
 }""",
-        f"Topic: {req.topic}\nConversation:\n{history_text}",
-        max_tokens=1000,
-    )
-    return json.loads(raw)
+            f"Topic: {req.topic}\nConversation:\n{history_text}",
+            max_tokens=1000,
+        )
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=502, detail="AI returned invalid JSON — please retry")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ─── Topic classifier ────────────────────────────────────────────────────────
@@ -202,19 +212,24 @@ class ClassifierRequest(BaseModel):
 
 @app.post("/classify/topic")
 async def classify_topic(req: ClassifierRequest):
-    raw = call_llm(
-        FAST_MODEL,
-        """Classify the lesson content and determine the best assessment type.
+    try:
+        raw = call_llm(
+            FAST_MODEL,
+            """Classify the lesson content and determine the best assessment type.
 Return JSON:
 {
   "primary_type": "coding|mcq|fill_blank|drag_drop|written|math",
   "secondary_type": "mcq|written|null",
   "language": "python|javascript|sql|null"
 }""",
-        req.lesson_content[:3000],
-        max_tokens=200,
-    )
-    return json.loads(raw)
+            req.lesson_content[:3000],
+            max_tokens=200,
+        )
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        return {"primary_type": "mcq", "secondary_type": None, "language": None}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/health")

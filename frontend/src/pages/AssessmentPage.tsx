@@ -143,19 +143,19 @@ export default function AssessmentPage() {
 
             {/* Interface by type */}
             {assessmentType === 'mcq' && (
-                <MCQInterface question={q} selected={answers[currentIndex]} onSelect={ans => { setAnswer(currentIndex, ans); handleAnswer(ans); }} onConfidence={c => setConfidence(currentIndex, c)} confidence={confidence[currentIndex]} />
+                <MCQInterface question={q} selected={answers[currentIndex]} onSelect={(ans: string) => { setAnswer(currentIndex, ans); handleAnswer(ans); }} onConfidence={(c: string) => setConfidence(currentIndex, c)} confidence={confidence[currentIndex]} />
             )}
             {assessmentType === 'coding' && (
-                <CodingInterface question={q} answer={answers[currentIndex] || q.starter_code || ''} onChange={v => setAnswer(currentIndex, v || '')} />
+                <CodingInterface question={q} answer={answers[currentIndex] || q.starter_code || ''} onChange={(v: string) => setAnswer(currentIndex, v || '')} />
             )}
             {assessmentType === 'fill_blank' && (
                 <FillBlankInterface question={q} answers={answers} currentIndex={currentIndex} onAnswer={setAnswer} />
             )}
             {assessmentType === 'drag_drop' && (
-                <DragDropInterface question={q} onAnswer={v => setAnswer(currentIndex, v)} />
+                <DragDropInterface question={q} onAnswer={(v: string) => setAnswer(currentIndex, v)} />
             )}
             {assessmentType === 'written' && (
-                <WrittenInterface value={answers[currentIndex] || ''} onChange={v => setAnswer(currentIndex, v)} />
+                <WrittenInterface value={answers[currentIndex] || ''} onChange={(v: string) => setAnswer(currentIndex, v)} />
             )}
 
             {/* Nav buttons */}
@@ -245,8 +245,8 @@ function CodingInterface({ question, answer, onChange }: any) {
         setOutput('Running...');
         try {
             // @ts-ignore
-            if (window.pyodide) {
-                const result = await window.pyodide.runPythonAsync(answer);
+            if ((window as any).pyodide) {
+                const result = await (window as any).pyodide.runPythonAsync(answer);
                 setOutput(String(result ?? '(no output)'));
             } else { setOutput('Run Python locally — Pyodide loading...'); }
         } catch (e: any) { setOutput(`Error: ${e.message}`); }
@@ -271,12 +271,12 @@ function CodingInterface({ question, answer, onChange }: any) {
 /* ─── Fill Blank Interface ─── */
 function FillBlankInterface({ question, answers, currentIndex, onAnswer }: any) {
     const parts = question.question.split(/(\[___\])/g);
-    const [blanks, setBlanks] = useState<string[]>(Array(parts.filter(p => p === '[___]').length).fill(''));
+    const [blanks, setBlanks] = useState<string[]>(Array(parts.filter((p: string) => p === '[___]').length).fill(''));
     return (
         <div style={{ fontSize: 14, lineHeight: 2 }}>
             {parts.map((part: string, i: number) => {
                 if (part !== '[___]') return <span key={i}>{part}</span>;
-                const blankIdx = parts.slice(0, i).filter(p => p === '[___]').length;
+                const blankIdx = parts.slice(0, i).filter((p: string) => p === '[___]').length;
                 return (
                     <input key={i} value={blanks[blankIdx]}
                         onChange={e => { const b = [...blanks]; b[blankIdx] = e.target.value; setBlanks(b); onAnswer(currentIndex, b.join('|')); }}
@@ -295,11 +295,11 @@ function DragDropInterface({ question, onAnswer }: any) {
     function handleDragEnd(event: any) {
         const { active, over } = event;
         if (active.id !== over?.id) {
-            setOrder(o => {
-                const oldIdx = o.findIndex(i => i.id === active.id);
-                const newIdx = o.findIndex(i => i.id === over.id);
+            setOrder((o: typeof items) => {
+                const oldIdx = o.findIndex((i: typeof items[0]) => i.id === active.id);
+                const newIdx = o.findIndex((i: typeof items[0]) => i.id === over.id);
                 const newOrder = arrayMove(o, oldIdx, newIdx);
-                onAnswer(newOrder.map(i => i.label).join('|'));
+                onAnswer(newOrder.map((i: typeof items[0]) => i.label).join('|'));
                 return newOrder;
             });
         }

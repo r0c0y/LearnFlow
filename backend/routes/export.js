@@ -1,6 +1,7 @@
 import express from "express";
 import { db } from "../db/client.js";
 import axios from "axios";
+import { v4 as uuidv4 } from "uuid";
 
 const router = express.Router();
 
@@ -24,20 +25,38 @@ router.get("/due", async (req, res) => {
 router.post("/anki", async (req, res) => {
     const { lesson_id } = req.body;
     try {
-        const { data: lessonData } = await db.execute({
+        const { rows } = await db.execute({
             sql: "SELECT * FROM lessons WHERE id = ?",
             args: [lesson_id],
         });
 
+        if (!rows?.length) return res.status(404).json({ error: "Lesson not found" });
+
         const agentRes = await axios.post(
             `${process.env.AGENT_SERVICE_URL}/export/anki`,
-            { lesson_id, lesson: lessonData?.rows?.[0] },
+            { lesson_id, lesson: rows[0] },
             { responseType: "arraybuffer" }
         );
 
         res.set("Content-Type", "application/octet-stream");
         res.set("Content-Disposition", `attachment; filename="learnflow_${lesson_id}.apkg"`);
         res.send(agentRes.data);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// POST /api/reviews/schedule — schedule a spaced repetition review
+router.post("/schedule", async (req, res) => {
+    const { lesson_id, review_date, score } = req.body;
+    if (!lesson_id || !review_date) return res.status(400).json({ error: "lesson_id and review_date required" });
+    try {
+        const id = uuidv4();
+        await db.execute({
+            sql: "INSERT INTO reviews (id, lesson_id, review_date, score) VALUES (?,?,?,?)",
+            args: [id, lesson_id, review_date, score || 0],
+        });
+        res.json({ id, scheduled: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
