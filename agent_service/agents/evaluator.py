@@ -83,7 +83,7 @@ Rubric: {assessment.get("rubric", "")}
 
 Student confusion points: {student_result.get("confusion_points", [])}
 """
-        raw = call_llm(HEAVY_MODEL, EVALUATOR_SYSTEM, user_msg, max_tokens=800)
+        raw = call_llm(HEAVY_MODEL, EVALUATOR_SYSTEM, user_msg, max_tokens=400)
         eval_result = json.loads(raw)
         eval_result["lesson_id"] = lid
         all_evaluations.append(eval_result)

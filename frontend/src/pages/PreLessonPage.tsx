@@ -86,7 +86,7 @@ export default function PreLessonPage() {
             framework,
             learner_level: learnerLevel,
             prior_knowledge: priorKnowledge,
-            max_iterations: 3,
+            max_iterations: 1,
         };
 
         const res = await fetch(`${API}/api/generate`, {

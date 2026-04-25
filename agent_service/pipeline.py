@@ -11,7 +11,7 @@ from agents.evaluator import run_evaluator
 def should_loop(state: dict) -> str:
     """Decide whether to loop or finish after evaluation."""
     iteration = state.get("iteration", 0)
-    max_iter = state.get("max_iterations", int(os.getenv("MAX_ITERATIONS", "3")))
+    max_iter = state.get("max_iterations", int(os.getenv("MAX_ITERATIONS", "1")))
     all_passed = state.get("all_passed", True)
 
     if all_passed or iteration >= max_iter - 1:
@@ -87,7 +87,7 @@ def run_pipeline_with_events(initial_state: dict) -> Generator[str, None, None]:
 
     state = dict(initial_state)
     state.setdefault("iteration", 0)
-    state.setdefault("max_iterations", int(os.getenv("MAX_ITERATIONS", "3")))
+    state.setdefault("max_iterations", int(os.getenv("MAX_ITERATIONS", "1")))
     state.setdefault("status", "generating")
     state.setdefault("failure_logs", [])
     state.setdefault("student_results", [])

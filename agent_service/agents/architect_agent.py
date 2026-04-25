@@ -92,7 +92,7 @@ Target 3-6 lessons unless content warrants more.
     system_prompt = GAGNE_SYSTEM if framework == "gagne" else MERRILL_SYSTEM
     model = choose_model(chunk_text)
 
-    raw = call_llm(model, system_prompt, user_msg, max_tokens=4000)
+    raw = call_llm(model, system_prompt, user_msg, max_tokens=3000)
     blueprint = json.loads(raw)
 
     # Merge: keep passing lessons from previous iteration

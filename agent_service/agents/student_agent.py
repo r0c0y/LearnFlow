@@ -122,7 +122,7 @@ Options: {safe_lesson.get('assessment', {}).get('options', [])}
 Attempt the exercise and answer the assessment question as a student.
 Return ONLY valid JSON matching the exact schema in your instructions."""
 
-        raw = call_llm(FAST_MODEL, STUDENT_SYSTEM, user_msg, max_tokens=800)
+        raw = call_llm(FAST_MODEL, STUDENT_SYSTEM, user_msg, max_tokens=500)
         result = _safe_parse(raw, lid)
         result["lesson_id"] = lid
         results.append(result)
