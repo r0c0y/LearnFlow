@@ -82,7 +82,11 @@ export default function AssessmentPage() {
             }),
         });
         const data = await res.json();
-        setScoreReport(data);
+        if (!res.ok || data.error) {
+            setScoreReport({ overall_score: 0, per_question: [], weak_areas: [], summary: data.error || 'Assessment scoring failed — please retry.' });
+        } else {
+            setScoreReport(data);
+        }
         setSubmitted(true);
     }
 
@@ -341,7 +345,7 @@ function WrittenInterface({ value, onChange }: { value: string; onChange: (v: st
 /* ─── Score Report ─── */
 function ScoreReport({ report, questions, hintDeductions }: any) {
     const navigate = useNavigate();
-    const finalScore = Math.max(0, report.overall_score - hintDeductions);
+    const finalScore = Math.max(0, (Number(report.overall_score) || 0) - (Number(hintDeductions) || 0));
     const passed = finalScore >= 70;
 
     // Animated ring
