@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Editor from '@monaco-editor/react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -17,6 +18,7 @@ const FRAMEWORK_LABELS: Record<string, string[]> = {
 };
 
 export default function LessonPage() {
+    const navigate = useNavigate();
     const { lessons, framework, currentLessonIndex, setCurrentLessonIndex } = useLessonStore();
     const [panelOpen, setPanelOpen] = useState(false);
     const [panelTab, setPanelTab] = useState<'text' | 'voice'>('text');
@@ -70,7 +72,14 @@ export default function LessonPage() {
                         lesson={lesson}
                         sectionIndex={sectionIdx}
                         total={sections.length}
-                        onNext={() => setSectionIdx(i => Math.min(i + 1, sections.length - 1))}
+                        isLast={sectionIdx === sections.length - 1}
+                        onNext={() => {
+                            if (sectionIdx === sections.length - 1) {
+                                navigate('/assessment');
+                            } else {
+                                setSectionIdx(i => Math.min(i + 1, sections.length - 1));
+                            }
+                        }}
                     />
                 )}
             </main>
@@ -118,7 +127,8 @@ export default function LessonPage() {
 }
 
 /* ─── Lesson Section ─── */
-function LessonSection({ section, lesson, sectionIndex, total, onNext }: any) {
+function LessonSection({ section, lesson, sectionIndex, total, isLast, onNext }: any) {
+    const navigate = useNavigate();
     const { recordExplainClick, triggered, dismiss } = useConfusionDetector(`section_${sectionIndex}`);
     const [explainContent, setExplainContent] = useState<string | null>(null);
     const [explainLoading, setExplainLoading] = useState(false);
@@ -155,7 +165,7 @@ function LessonSection({ section, lesson, sectionIndex, total, onNext }: any) {
             }
             const data = await res.json();
             setBranchContent(data.new_content);
-        } catch(error) {
+        } catch (error) {
             console.error("Branching error:", error);
             // Optionally, we could show an error toast or message here
         } finally { setBranchLoading(false); }
@@ -238,40 +248,40 @@ _stdout_capture.getvalue()
 
             {/* Main content */}
             <div className="text-left space-y-4">
-              <ReactMarkdown 
-                remarkPlugins={[remarkGfm]}
-                components={{
-                  code({node, inline, className, children, ...props}: any) {
-                    const match = /language-(\w+)/.exec(className || '')
-                    return !inline && match ? (
-                      <SyntaxHighlighter
-                        style={vscDarkPlus as any}
-                        language={match[1]}
-                        PreTag="div"
-                        className="rounded-md my-4"
-                        {...props}
-                      >
-                        {String(children).replace(/\n$/, '')}
-                      </SyntaxHighlighter>
-                    ) : (
-                      <code className="bg-gray-800 text-gray-200 px-1 py-0.5 rounded" {...props}>
-                        {children}
-                      </code>
-                    )
-                  },
-                  h1: ({node, ...props}: any) => <h1 className="text-3xl font-bold mt-6 mb-4 text-white" {...props} />,
-                  h2: ({node, ...props}: any) => <h2 className="text-2xl font-semibold mt-5 mb-3 text-white" {...props} />,
-                  h3: ({node, ...props}: any) => <h3 className="text-xl font-medium mt-4 mb-2 text-white" {...props} />,
-                  p: ({node, ...props}: any) => <p className="mb-4 leading-relaxed text-gray-300" {...props} />,
-                  ul: ({node, ...props}: any) => <ul className="list-disc pl-6 mb-4 space-y-2 text-gray-300" {...props} />,
-                  ol: ({node, ...props}: any) => <ol className="list-decimal pl-6 mb-4 space-y-2 text-gray-300" {...props} />,
-                  a: ({node, ...props}: any) => <a className="text-blue-400 hover:text-blue-300 underline" {...props} />,
-                  strong: ({node, ...props}: any) => <strong className="font-bold text-white" {...props} />,
-                  em: ({node, ...props}: any) => <em className="italic text-gray-200" {...props} />,
-                }}
-              >
-                  {String(branchContent?.content || explainContent || section.content).replace(/\\n/g, '\n')}
-              </ReactMarkdown>
+                <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                        code({ node, inline, className, children, ...props }: any) {
+                            const match = /language-(\w+)/.exec(className || '')
+                            return !inline && match ? (
+                                <SyntaxHighlighter
+                                    style={vscDarkPlus as any}
+                                    language={match[1]}
+                                    PreTag="div"
+                                    {...props}
+                                >
+                                    {String(children).replace(/\n$/, '')}
+                                </SyntaxHighlighter>
+                            ) : (
+                                <code style={{ background: 'var(--code-bg)', color: '#e4e4e7', padding: '2px 6px', borderRadius: 4, fontSize: 13 }} {...props}>
+                                    {children}
+                                </code>
+                            )
+                        },
+                        h1: ({ node, ...props }: any) => <h1 style={{ fontSize: 24, fontWeight: 700, marginTop: 24, marginBottom: 12, color: 'var(--text-primary)' }} {...props} />,
+                        h2: ({ node, ...props }: any) => <h2 style={{ fontSize: 20, fontWeight: 600, marginTop: 20, marginBottom: 10, color: 'var(--text-primary)' }} {...props} />,
+                        h3: ({ node, ...props }: any) => <h3 style={{ fontSize: 17, fontWeight: 500, marginTop: 16, marginBottom: 8, color: 'var(--text-primary)' }} {...props} />,
+                        p: ({ node, ...props }: any) => <p style={{ marginBottom: 14, lineHeight: 1.8, color: 'var(--text-secondary)' }} {...props} />,
+                        ul: ({ node, ...props }: any) => <ul style={{ paddingLeft: 24, marginBottom: 14, color: 'var(--text-secondary)', listStyleType: 'disc' }} {...props} />,
+                        ol: ({ node, ...props }: any) => <ol style={{ paddingLeft: 24, marginBottom: 14, color: 'var(--text-secondary)', listStyleType: 'decimal' }} {...props} />,
+                        li: ({ node, ...props }: any) => <li style={{ marginBottom: 6, lineHeight: 1.7 }} {...props} />,
+                        a: ({ node, ...props }: any) => <a style={{ color: 'var(--accent)', textDecoration: 'underline' }} {...props} />,
+                        strong: ({ node, ...props }: any) => <strong style={{ fontWeight: 600, color: 'var(--text-primary)' }} {...props} />,
+                        em: ({ node, ...props }: any) => <em style={{ fontStyle: 'italic', color: 'var(--text-secondary)' }} {...props} />,
+                    }}
+                >
+                    {String(branchContent?.content || explainContent || section.content).replace(/\\n/g, '\n')}
+                </ReactMarkdown>
             </div>
 
             {/* Term popover */}
@@ -341,6 +351,21 @@ _stdout_capture.getvalue()
                     </div>
                 )}
             </div>
+
+            {/* Assessment CTA at end of lesson */}
+            {isLast && (
+                <div style={{
+                    marginTop: 32, padding: 24, borderRadius: 14, textAlign: 'center',
+                    background: 'linear-gradient(135deg, var(--accent-light), var(--bg-subtle))',
+                    border: '1px solid var(--border)',
+                }}>
+                    <p style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>🎉 Lesson Complete!</p>
+                    <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }}>Ready to test your understanding?</p>
+                    <button className="btn btn-primary btn-lg" onClick={() => navigate('/assessment')} style={{ minWidth: 200 }}>
+                        Take Assessment →
+                    </button>
+                </div>
+            )}
         </div>
     );
 }

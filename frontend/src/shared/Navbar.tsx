@@ -30,19 +30,28 @@ export default function Navbar() {
     return (
         <nav style={{
             height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '0 24px', background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(8px)',
+            padding: '0 24px',
+            background: dark ? 'rgba(12,12,15,0.92)' : 'rgba(255,255,255,0.88)',
+            backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
             borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, zIndex: 100,
-        }}
-            className="dark:[background:rgba(12,12,15,0.85)]"
-        >
+        }}>
             {/* LEFT — Logo */}
             <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
                 <div style={{
-                    width: 28, height: 28, borderRadius: '50%', background: 'var(--accent)',
+                    width: 28, height: 28, borderRadius: 8,
+                    background: 'linear-gradient(135deg, #7C3AED 0%, #6D28D9 50%, #4F46E5 100%)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: '#fff', fontWeight: 700, fontSize: 14, flexShrink: 0,
-                }}>L</div>
-                <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>LearnFlow</span>
+                    color: '#fff', fontWeight: 700, fontSize: 13, flexShrink: 0,
+                    boxShadow: '0 2px 8px rgba(124, 58, 237, 0.3)',
+                }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+                        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+                    </svg>
+                </div>
+                <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>
+                    Learn<span style={{ color: 'var(--accent)' }}>Flow</span>
+                </span>
             </Link>
 
             {/* CENTER — Nav tabs */}
@@ -54,28 +63,24 @@ export default function Navbar() {
                     active={isActive('/assessment')}
                     locked={!lessonReady}
                 />
+                <NavTab to="/library" label="Library" active={isActive('/library')} />
             </div>
 
             {/* RIGHT — Actions */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 {streak > 0 && (
-                    <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)' }}>
+                    <span style={{
+                        fontSize: 12, fontWeight: 600, color: 'var(--warning)',
+                        background: 'var(--warning-light)', padding: '3px 8px', borderRadius: 6,
+                    }}>
                         🔥 {streak}
                     </span>
                 )}
-                <div style={{ width: 1, height: 16, background: 'var(--border)', margin: '0 4px' }} />
-                <button
-                    className="btn-icon"
-                    onClick={() => navigate('/library')}
-                    aria-label="Library"
-                    title="Library"
-                >
-                    <BookIcon />
-                </button>
                 <button
                     className="btn-icon"
                     onClick={() => setDark(d => !d)}
                     aria-label="Toggle dark mode"
+                    title={dark ? 'Light mode' : 'Dark mode'}
                 >
                     {dark ? <SunIcon /> : <MoonIcon />}
                 </button>
