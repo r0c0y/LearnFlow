@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
 export type InputType = 'prompt' | 'url' | 'text' | 'file' | 'youtube';
-export type Framework = 'gagne' | 'merrill';
+export type Framework = 'gagne' | 'merrill' | 'bloom';
 export type LearnerLevel = 'beginner' | 'intermediate' | 'expert';
 export type PipelineStatus =
     | 'idle' | 'ingesting' | 'chunking' | 'architect' | 'content'

@@ -56,8 +56,7 @@ router.post("/prior", async (req, res) => {
     try {
         const systemMsg = {
             role: "system",
-            content: `You are an intelligent tutor running a prior knowledge assessment for the topic: "${topic}".
-Ask the student what they already know. After 2-3 turns, summarize gaps. Keep responses SHORT (1-2 sentences + 1 question).`,
+            content: `You are assessing a student's prior knowledge about "${topic}". Ask 1-2 focused questions to gauge their understanding. Do NOT teach or explain concepts - only assess what they know. Keep responses very brief (1 question only). After 2 exchanges, stop asking questions.`,
         };
         const allMessages = [systemMsg, ...messages];
         const result = await getGroq().chat.completions.create({

@@ -2,14 +2,16 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { useLessonStore } from '../store/lessonStore';
 import { useLibraryStore } from '../store/libraryStore';
+import { useAuthStore } from '../store/authStore';
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API = import.meta.env.VITE_API_URL || '';
 
 export default function Navbar() {
     const location = useLocation();
     const navigate = useNavigate();
     const { lessonReady } = useLessonStore();
     const { dueReviews } = useLibraryStore();
+    const { user, clearAuth } = useAuthStore();
     const [dark, setDark] = useState(() => {
         return localStorage.getItem('learnflow-dark') === 'true';
     });
@@ -64,16 +66,17 @@ export default function Navbar() {
                     locked={!lessonReady}
                 />
                 <NavTab to="/library" label="Library" active={isActive('/library')} />
+                <NavTab to="/analytics" label="Analytics" active={isActive('/analytics')} />
             </div>
 
             {/* RIGHT — Actions */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 {streak > 0 && (
                     <span style={{
                         fontSize: 12, fontWeight: 600, color: 'var(--warning)',
                         background: 'var(--warning-light)', padding: '3px 8px', borderRadius: 6,
                     }}>
-                        🔥 {streak}
+                        {streak} day streak
                     </span>
                 )}
                 <button
@@ -90,6 +93,20 @@ export default function Navbar() {
                             {dueReviews.length} due
                         </span>
                     </Link>
+                )}
+                {user ? (
+                    <>
+                        <span style={{ fontSize: 12, color: 'var(--text-secondary)', padding: '4px 10px', borderRadius: 999, background: 'var(--bg-muted)' }}>
+                            {user.email}
+                        </span>
+                        <button className="btn btn-ghost" style={{ fontSize: 12, padding: '8px 12px' }} onClick={() => { clearAuth(); navigate('/auth'); }}>
+                            Logout
+                        </button>
+                    </>
+                ) : (
+                    <button className="btn btn-primary btn-sm" style={{ fontSize: 12, padding: '8px 12px' }} onClick={() => navigate('/auth')}>
+                        Login
+                    </button>
                 )}
             </div>
         </nav>

@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useLessonStore } from '../store/lessonStore';
 import type { InputType, Framework, LearnerLevel } from '../store/lessonStore';
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-const AGENT = import.meta.env.VITE_AGENT_URL || 'http://localhost:8000';
+const API = import.meta.env.VITE_API_URL || '';
 
 const TABS: { id: InputType; label: string }[] = [
     { id: 'prompt', label: 'Topic' },
@@ -42,7 +41,7 @@ export default function InputPage() {
             setInputContent(data.text || '');
         } else if (file.name.endsWith('.docx')) {
             // @ts-ignore
-            const mammoth = (await import('mammoth/mammoth.browser')).default;
+            const mammoth = (await import('mammoth/mammoth.browser.js')).default;
             const buf = await file.arrayBuffer();
             const result = await mammoth.extractRawText({ arrayBuffer: buf });
             setInputContent(result.value || '');
@@ -56,8 +55,8 @@ export default function InputPage() {
         setAdvisorLoading(true);
 
         try {
-            // 1. Run Input Quality Advisor
-            const advRes = await fetch(`${AGENT}/advisor/analyze`, {
+            // 1. Run Input Quality Advisor through backend proxy
+            const advRes = await fetch(`${API}/api/advisor/analyze`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ content: inputContent, type: inputType }),
@@ -66,11 +65,26 @@ export default function InputPage() {
             setAdvisorResult(advData);
 
             // 2. Ingest + chunk
-            const ingestRes = await fetch(`${API}/api/ingest`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type: inputType, content: inputContent }),
-            });
+            let ingestRes;
+            if (inputType === 'url') {
+                ingestRes = await fetch(`${API}/api/ingest/url`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: inputContent }),
+                });
+            } else if (inputType === 'youtube') {
+                ingestRes = await fetch(`${API}/api/ingest/youtube`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: inputContent }),
+                });
+            } else {
+                ingestRes = await fetch(`${API}/api/ingest`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: inputType, content: inputContent }),
+                });
+            }
             const ingestData = await ingestRes.json();
             setChunks(ingestData.chunks || []);
         } catch (e: any) {
@@ -129,7 +143,7 @@ export default function InputPage() {
                             <div style={{ display: 'flex', gap: 12, marginTop: 10, flexWrap: 'wrap' }}>
                                 <ToggleGroup
                                     label="Framework"
-                                    options={[{ value: 'gagne', label: 'Gagne' }, { value: 'merrill', label: 'Merrill' }]}
+                                    options={[{ value: 'gagne', label: 'Gagne' }, { value: 'merrill', label: 'Merrill' }, { value: 'bloom', label: 'Bloom' }]}
                                     value={framework} onChange={v => setFramework(v as Framework)}
                                 />
                                 <ToggleGroup

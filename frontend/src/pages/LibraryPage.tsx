@@ -4,36 +4,59 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tool
 import { useLibraryStore } from '../store/libraryStore';
 import type { SavedLesson, Folder } from '../store/libraryStore';
 import { useLessonStore } from '../store/lessonStore';
+import { useAuthStore } from '../store/authStore';
+import { authFetch } from '../utils/api';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API = import.meta.env.VITE_API_URL || '';
 
 export default function LibraryPage() {
     const navigate = useNavigate();
     const { lessons, folders, activeFolderId, setLessons, setFolders, setActiveFolderId, dueReviews, setDueReviews, statsData, setStatsData, searchQuery, setSearchQuery } = useLibraryStore();
     const { setLessons: setCurrentLessons, setLessonReady } = useLessonStore();
+    const { user } = useAuthStore();
     const [activeTab, setActiveTab] = useState<'lessons' | 'stats'>('lessons');
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        if (!user) {
+            setLoading(false);
+            return;
+        }
+
         Promise.all([
-            fetch(`${API}/api/library`).then(r => r.json()),
+            authFetch(`${API}/api/library`).then(r => r.json()),
             fetch(`${API}/api/stats`).then(r => r.json()),
-            fetch(`${API}/api/reviews/due`).then(r => r.json()),
+            authFetch(`${API}/api/reviews/due`).then(r => r.json()),
         ]).then(([lib, stats, reviews]) => {
             setLessons(lib.lessons || []);
             setFolders(lib.folders || []);
             setStatsData(stats);
             setDueReviews(reviews.due || []);
         }).catch(() => { }).finally(() => setLoading(false));
-    }, []);
+    }, [user]);
 
     const filtered = lessons.filter(l => {
         const matchFolder = !activeFolderId || l.folder_id === activeFolderId;
         const matchSearch = !searchQuery || l.title?.toLowerCase().includes(searchQuery.toLowerCase());
         return matchFolder && matchSearch;
     });
+    const dueLessons = dueReviews
+        .map(review => lessons.find(l => l.id === review.lesson_id))
+        .filter((lesson): lesson is any => Boolean(lesson));
+
+    if (!user) {
+        return (
+            <div style={{ minHeight: 'calc(100vh - 52px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+                <div style={{ maxWidth: 520, textAlign: 'center' }}>
+                    <h2 className="text-h2">Please sign in to view your library</h2>
+                    <p style={{ color: 'var(--text-secondary)', margin: '16px 0' }}>Your generated lessons, scores, and review schedule are saved securely to your account.</p>
+                    <button className="btn btn-primary" onClick={() => navigate('/auth')}>Login or Register</button>
+                </div>
+            </div>
+        );
+    }
 
     async function openLesson(lesson: SavedLesson) {
         const content = lesson.content_json;
@@ -62,7 +85,7 @@ export default function LibraryPage() {
     }
 
     async function exportAnki(lesson: SavedLesson) {
-        const res = await fetch(`${API}/api/export/anki`, {
+        const res = await authFetch(`${API}/api/export/anki`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ lesson_id: lesson.id }),
         });
@@ -78,9 +101,8 @@ export default function LibraryPage() {
 
                 {/* Search */}
                 <div style={{ position: 'relative', marginBottom: 16 }}>
-                    <input className="input" style={{ height: 36, paddingLeft: 32, fontSize: 13 }} placeholder="Search lessons..."
+                    <input className="input" style={{ height: 36, paddingLeft: 14, fontSize: 13 }} placeholder="Search lessons..."
                         value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
-                    <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', fontSize: 13 }}>🔍</span>
                 </div>
 
                 {/* All lessons */}
@@ -93,7 +115,7 @@ export default function LibraryPage() {
                     <button className="btn btn-ghost" style={{ width: '100%', justifyContent: 'flex-start', fontSize: 13 }}
                         onClick={() => {
                             const name = prompt('Folder name:');
-                            if (name) fetch(`${API}/api/library/folder`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) })
+                            if (name) authFetch(`${API}/api/library/folder`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) })
                                 .then(r => r.json()).then(f => setFolders([...folders, { ...f, children: [] }]));
                         }}>
                         + New folder
@@ -105,8 +127,18 @@ export default function LibraryPage() {
             <main style={{ flex: 1, overflowY: 'auto', padding: '24px 32px' }}>
                 {/* Due review banner */}
                 {dueReviews.length > 0 && (
-                    <div style={{ background: 'var(--warning-light)', border: '1px solid #FCD34D', borderRadius: 10, padding: '10px 16px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
-                        📅 You have <strong>{dueReviews.length}</strong> lesson{dueReviews.length > 1 ? 's' : ''} due for review today
+                    <div style={{ background: 'var(--warning-light)', border: '1px solid #FCD34D', borderRadius: 10, padding: '14px 18px', marginBottom: 20 }}>
+                        <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>Review recommendations</p>
+                        <p style={{ margin: '6px 0 0', fontSize: 13, color: 'var(--text-secondary)' }}>
+                            You have <strong>{dueReviews.length}</strong> lesson{dueReviews.length > 1 ? 's' : ''} due for review today.
+                        </p>
+                        {dueLessons.length > 0 && (
+                            <ul style={{ margin: '10px 0 0', paddingLeft: 18, color: 'var(--text-secondary)', fontSize: 13 }}>
+                                {dueLessons.slice(0, 3).map((lesson, index) => (
+                                    <li key={lesson.id}>{lesson.title || 'Untitled lesson'}{index === 2 && dueLessons.length > 3 ? ` and ${dueLessons.length - 3} more` : ''}</li>
+                                ))}
+                            </ul>
+                        )}
                     </div>
                 )}
 
@@ -116,7 +148,7 @@ export default function LibraryPage() {
                     <div style={{ display: 'flex', gap: 8 }}>
                         {(['lessons', 'stats'] as const).map(t => (
                             <button key={t} className={`pill-tab${activeTab === t ? ' active' : ''}`} style={{ flex: 'initial' }}
-                                onClick={() => setActiveTab(t)}>{t === 'stats' ? '📊 Stats' : '📚 Lessons'}</button>
+                                onClick={() => setActiveTab(t)}>{t === 'stats' ? 'Stats' : 'Lessons'}</button>
                         ))}
                     </div>
                 </div>
@@ -244,7 +276,6 @@ function StatsDashboard({ data }: { data: any }) {
 
             {/* Streak */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 20 }}>🔥</span>
                 <span style={{ fontSize: 13, fontWeight: 500 }}>{data.streak_days || 0} day streak</span>
             </div>
         </div>
@@ -255,7 +286,7 @@ function StatsDashboard({ data }: { data: any }) {
 function EmptyState({ onStart }: { onStart: () => void }) {
     return (
         <div style={{ textAlign: 'center', paddingTop: 80 }}>
-            <div style={{ width: 80, height: 80, borderRadius: 20, background: 'var(--accent-light)', margin: '0 auto 20px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36 }}>📚</div>
+            <div style={{ width: 80, height: 80, borderRadius: 20, background: 'var(--accent-light)', margin: '0 auto 20px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, color: 'var(--text-secondary)' }}>Library</div>
             <h2 style={{ fontSize: 18, fontWeight: 500, marginBottom: 8 }}>No lessons yet</h2>
             <p style={{ color: 'var(--text-secondary)', marginBottom: 20 }}>Generate your first lesson to get started</p>
             <button className="btn btn-primary" onClick={onStart}>Start learning</button>

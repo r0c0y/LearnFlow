@@ -156,7 +156,7 @@ Return JSON:
 {
   "topic_name": "detected topic",
   "complexity_level": "beginner|intermediate|expert",
-  "recommended_framework": "gagne|merrill",
+  "recommended_framework": "gagne|merrill|bloom",
   "estimated_minutes": 30,
   "is_too_broad": false,
   "focused_angles": ["focused subtopic 1", "focused subtopic 2", "focused subtopic 3"],

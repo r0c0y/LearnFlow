@@ -2,6 +2,14 @@ import { db } from "./client.js";
 
 export async function initSchema() {
     await db.executeMultiple(`
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      email TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      salt TEXT NOT NULL,
+      created_at TEXT
+    );
+
     CREATE TABLE IF NOT EXISTS lessons (
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL,
@@ -14,7 +22,8 @@ export async function initSchema() {
       date_created TEXT,
       date_assessed TEXT,
       iterations_needed INTEGER DEFAULT 0,
-      status TEXT DEFAULT 'complete'
+      status TEXT DEFAULT 'complete',
+      user_id TEXT
     );
 
     CREATE TABLE IF NOT EXISTS folders (
@@ -57,6 +66,18 @@ export async function initSchema() {
                 args: [id, name, null, new Date().toISOString()],
             });
         }
+    }
+
+    try {
+        await db.execute("ALTER TABLE lessons ADD COLUMN user_id TEXT");
+    } catch (_err) {
+        // column already exists or table already migrated
+    }
+
+    try {
+        await db.execute("ALTER TABLE reviews ADD COLUMN user_id TEXT");
+    } catch (_err) {
+        // column already exists or table already migrated
     }
 
     console.log("✅ Database schema initialized");

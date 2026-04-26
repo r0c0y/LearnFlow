@@ -15,6 +15,8 @@ import hintRouter from "./routes/hint.js";
 import transcribeRouter from "./routes/transcribe.js";
 import libraryRouter from "./routes/library.js";
 import exportRouter from "./routes/export.js";
+import authRouter from "./routes/auth.js";
+import agentProxyRouter from "./routes/agentProxy.js";
 import statsRouter from "./routes/stats.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -34,11 +36,14 @@ app.use("/api/lesson", lessonRouter);
 app.use("/api/assess", assessRouter);
 app.use("/api/chat", chatRouter);
 app.use("/api/prior-check", chatRouter);  // prior-check uses same router
+app.use("/api/advisor", agentProxyRouter);
+app.use("/api/classify", agentProxyRouter);
 app.use("/api/explain", explainRouter);
 app.use("/api/hint", hintRouter);
 app.use("/api/transcribe", transcribeRouter);
 app.use("/api/library", libraryRouter);
 app.use("/api/save", libraryRouter);
+app.use("/api/auth", authRouter);
 app.use("/api/export", exportRouter);
 app.use("/api/reviews", exportRouter);
 app.use("/api/stats", statsRouter);

@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLessonStore } from '../store/lessonStore';
+import { Spinner, ErrorMessage } from '../shared/Loading';
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-const AGENT = import.meta.env.VITE_AGENT_URL || 'http://localhost:8000';
+const API = import.meta.env.VITE_API_URL || '';
 
 const STAGES = [
     { key: 'ingesting', label: 'Reading your content...', progress: 10 },
@@ -15,7 +15,7 @@ const STAGES = [
     { key: 'complete', label: 'Your lesson is ready!', progress: 100 },
 ];
 
-type Step = 1 | 2 | 3 | 4;
+type Step = 1 | 2 | 3 | 4 | 5;
 
 export default function PreLessonPage() {
     const navigate = useNavigate();
@@ -30,7 +30,16 @@ export default function PreLessonPage() {
     const [checkedConcepts, setCheckedConcepts] = useState<Set<string>>(new Set());
     const [stageMessage, setStageMessage] = useState('');
     const [progress, setLocalProgress] = useState(0);
+    const [error, setError] = useState<string | null>(null);
+    const chatContainerRef = useRef<HTMLDivElement>(null);
     const topic = useLessonStore(s => s.advisorResult?.topic_name || inputContent.slice(0, 60));
+
+    // Auto-scroll to bottom when new messages arrive
+    useEffect(() => {
+        if (chatContainerRef.current) {
+            chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+        }
+    }, [chatMessages]);
 
     // Initialize chat
     useEffect(() => {
@@ -53,16 +62,25 @@ export default function PreLessonPage() {
                 body: JSON.stringify({ messages: updated, topic }),
             });
             const data = await res.json();
-            setChatMessages(m => [...m, { role: 'assistant', content: data.reply }]);
-            if (updated.filter(m => m.role === 'user').length >= 2) {
-                await buildPrerequisites(updated);
+            const newMessages = [...updated, { role: 'assistant', content: data.reply }];
+            setChatMessages(newMessages);
+
+            // Check if we should proceed to next step (after 3-5 user messages)
+            const userMessageCount = newMessages.filter(m => m.role === 'user').length;
+            if (userMessageCount >= 4) { // Allow 4 exchanges (agent asks, user answers, repeat 2-3 times)
+                await buildPrerequisites(newMessages);
+                setTimeout(() => setStep(2), 1000);
             }
-        } catch (_) { } finally { setChatLoading(false); }
+        } catch (e) {
+            console.error('Chat error:', e);
+        } finally {
+            setChatLoading(false);
+        }
     }
 
     async function buildPrerequisites(history: any[]) {
         try {
-            const res = await fetch(`${AGENT}/advisor/prerequisites`, {
+            const res = await fetch(`${API}/api/advisor/prerequisites`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ topic, conversation_history: history }),
@@ -72,13 +90,16 @@ export default function PreLessonPage() {
             const known = new Set<string>(data.known_concepts || []);
             setCheckedConcepts(known);
             setPriorKnowledge({ known: data.known_concepts || [], gaps: data.gap_concepts || [] });
-        } catch (_) { }
+        } catch (e) {
+            console.error('Prerequisite fetch failed:', e);
+        }
     }
 
     async function startPipeline() {
-        setStep(4);
+        setStep(5);
         setStageMessage('Reading your content...');
         setLocalProgress(10);
+        setError(null);
 
         const state = {
             raw_input: { type: 'text', content: inputContent },
@@ -86,38 +107,78 @@ export default function PreLessonPage() {
             framework,
             learner_level: learnerLevel,
             prior_knowledge: priorKnowledge,
-            max_iterations: 1,
+            max_iterations: Number(import.meta.env.VITE_MAX_ITERATIONS || 3),
         };
 
-        const res = await fetch(`${API}/api/generate`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(state),
-        });
-        if (!res.body) return;
+        let res;
+        try {
+            res = await fetch(`${API}/api/generate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(state),
+            });
+        } catch (fetchError) {
+            setError('Failed to connect to the lesson generation service. Please check your internet connection and try again.');
+            return;
+        }
+
+        if (!res.ok) {
+            const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
+            setError(errorData.error || `Server error: ${res.status}`);
+            return;
+        }
+
+        if (!res.body) {
+            setError('Lesson generation response is invalid. Please try again.');
+            return;
+        }
 
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
 
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            const text = decoder.decode(value);
-            const lines = text.split('\n').filter(l => l.startsWith('data:'));
-            for (const line of lines) {
-                try {
-                    const parsed = JSON.parse(line.slice(5));
-                    const stage = STAGES.find(s => s.key === parsed.stage);
-                    if (stage) { setStageMessage(stage.label); setLocalProgress(stage.progress); }
-                    if (parsed.stage === 'complete' && parsed.data?.lessons) {
-                        setLessons(parsed.data.lessons);
-                        setLessonReady(true);
-                        const id = `lesson_${Date.now()}`;
-                        setLessonId(id);
-                        setTimeout(() => navigate('/lesson'), 600);
+        try {
+            let buffer = '';
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                const chunk = decoder.decode(value, { stream: true });
+                buffer += chunk;
+
+                // Process complete lines
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        const data = line.slice(6).trim();
+                        if (data) {
+                            try {
+                                const parsed = JSON.parse(data);
+                                const stage = STAGES.find(s => s.key === parsed.stage);
+                                if (stage) {
+                                    setStageMessage(stage.label);
+                                    setLocalProgress(stage.progress);
+                                }
+                                if (parsed.stage === 'complete' && parsed.data?.lessons) {
+                                    setLessons(parsed.data.lessons);
+                                    setLessonReady(true);
+                                    const id = `lesson_${Date.now()}`;
+                                    setLessonId(id);
+                                    setTimeout(() => navigate('/lesson'), 600);
+                                } else if (parsed.stage === 'error') {
+                                    setError(parsed.message || 'An error occurred during lesson generation.');
+                                }
+                            } catch (parseError) {
+                                console.warn('Failed to parse SSE data chunk:', parseError, 'Data:', data.slice(0, 200) + '...');
+                                // Continue processing other chunks
+                            }
+                        }
                     }
-                } catch (_) { }
+                }
             }
+        } catch (streamError) {
+            console.error('Stream error:', streamError);
+            setError('Connection lost during lesson generation. Please try again.');
         }
     }
 
@@ -125,7 +186,7 @@ export default function PreLessonPage() {
         <div style={{ display: 'flex', minHeight: 'calc(100vh - 52px)', padding: '40px 24px', gap: 40, maxWidth: 900, margin: '0 auto' }}>
             {/* Vertical stepper */}
             <div style={{ width: 180, flexShrink: 0 }}>
-                <VerticalStepper currentStep={step} steps={['What you know', 'Knowledge map', 'Concept check', 'Ready to learn']} />
+                <VerticalStepper currentStep={step} steps={['What you know', 'Knowledge map', 'Concept check', 'Curriculum preview', 'Ready to learn']} />
             </div>
 
             {/* Main content */}
@@ -133,7 +194,7 @@ export default function PreLessonPage() {
                 {step === 1 && (
                     <div className="card animate-fade-in-up">
                         <h2 className="text-h2" style={{ marginBottom: 16 }}>What do you already know?</h2>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16, maxHeight: 300, overflowY: 'auto' }}>
+                        <div ref={chatContainerRef} style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16, maxHeight: 300, overflowY: 'auto' }}>
                             {chatMessages.map((m, i) => (
                                 <div key={i} style={{
                                     alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start',
@@ -145,16 +206,17 @@ export default function PreLessonPage() {
                             ))}
                             {chatLoading && <div style={{ alignSelf: 'flex-start', color: 'var(--text-tertiary)', fontSize: 13 }}>Thinking...</div>}
                         </div>
-                        <div style={{ display: 'flex', gap: 8 }}>
-                            <input className="input" placeholder="Type your answer..." value={chatInput}
-                                onChange={e => setChatInput(e.target.value)}
-                                onKeyDown={e => e.key === 'Enter' && sendChat()} />
-                            <button className="btn btn-primary" onClick={sendChat} disabled={chatLoading}>Send</button>
-                        </div>
-                        {chatMessages.filter(m => m.role === 'user').length >= 2 && (
-                            <button className="btn btn-secondary" style={{ marginTop: 12, width: '100%' }} onClick={() => setStep(2)}>
-                                Continue →
-                            </button>
+                        {chatMessages.filter(m => m.role === 'user').length < 4 ? (
+                            <div style={{ display: 'flex', gap: 8 }}>
+                                <input className="input" placeholder="Type your answer..." value={chatInput}
+                                    onChange={e => setChatInput(e.target.value)}
+                                    onKeyDown={e => e.key === 'Enter' && sendChat()} />
+                                <button className="btn btn-primary" onClick={sendChat} disabled={chatLoading}>Send</button>
+                            </div>
+                        ) : (
+                            <div style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: 14, padding: '12px' }}>
+                                ✓ Assessment complete! Analyzing your knowledge...
+                            </div>
                         )}
                     </div>
                 )}
@@ -166,9 +228,14 @@ export default function PreLessonPage() {
                             Green = you know it · Yellow = partial · Violet = learning target
                         </p>
                         <KnowledgeMap prerequisites={prerequisites} checkedConcepts={checkedConcepts} />
-                        <button className="btn btn-primary" style={{ marginTop: 16, width: '100%' }} onClick={() => setStep(3)}>
-                            Continue →
-                        </button>
+                        <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
+                            <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setStep(1)}>
+                                ← Back to Chat
+                            </button>
+                            <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => setStep(3)}>
+                                Continue to Check →
+                            </button>
+                        </div>
                     </div>
                 )}
 
@@ -201,25 +268,49 @@ export default function PreLessonPage() {
                         <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>
                             {checkedConcepts.size} concepts selected as prior knowledge
                         </p>
-                        <button className="btn btn-primary" style={{ width: '100%' }} onClick={startPipeline}>
-                            Build my lesson →
+                        <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => setStep(4)}>
+                            Preview Curriculum →
                         </button>
                     </div>
                 )}
 
                 {step === 4 && (
+                    <div className="card animate-fade-in-up">
+                        <h2 className="text-h2" style={{ marginBottom: 8 }}>Curriculum Preview</h2>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginBottom: 16 }}>
+                            Here's your personalized learning path based on your knowledge assessment
+                        </p>
+                        <CurriculumPreview topic={topic} framework={framework} learnerLevel={learnerLevel} />
+                        <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
+                            <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setStep(3)}>
+                                ← Back to Check
+                            </button>
+                            <button className="btn btn-primary" style={{ flex: 1 }} onClick={startPipeline}>
+                                Start Building →
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {step === 5 && (
                     <div className="card animate-fade-in-up" style={{ textAlign: 'center', padding: 40 }}>
-                        <div style={{
-                            width: 56, height: 56, borderRadius: '50%', background: 'var(--accent)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px',
-                        }}>
-                            <span style={{ color: '#fff', fontSize: 24 }}>✓</span>
-                        </div>
-                        <h2 className="text-h2" style={{ marginBottom: 8 }}>Your lesson is being built</h2>
-                        <div style={{ height: 4, background: 'var(--bg-muted)', borderRadius: 2, margin: '20px 0', overflow: 'hidden' }}>
-                            <div style={{ height: '100%', background: 'var(--accent)', borderRadius: 2, width: `${progress}%`, transition: 'width 400ms ease' }} />
-                        </div>
-                        <p className="animate-fade-in" style={{ color: 'var(--text-secondary)', fontSize: 14 }}>{stageMessage}</p>
+                        {error ? (
+                            <ErrorMessage error={error} onRetry={() => { setError(null); setStep(4); }} />
+                        ) : (
+                            <>
+                                <div style={{
+                                    width: 56, height: 56, borderRadius: '50%', background: 'var(--accent)',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px',
+                                }}>
+                                    <span style={{ color: '#fff', fontSize: 24 }}>✓</span>
+                                </div>
+                                <h2 className="text-h2" style={{ marginBottom: 8 }}>Your lesson is being built</h2>
+                                <div style={{ height: 4, background: 'var(--bg-muted)', borderRadius: 2, margin: '20px 0', overflow: 'hidden' }}>
+                                    <div style={{ height: '100%', background: 'var(--accent)', borderRadius: 2, width: `${progress}%`, transition: 'width 400ms ease' }} />
+                                </div>
+                                <p className="animate-fade-in" style={{ color: 'var(--text-secondary)', fontSize: 14 }}>{stageMessage}</p>
+                            </>
+                        )}
                     </div>
                 )}
             </div>
@@ -302,6 +393,129 @@ function KnowledgeMap({ prerequisites, checkedConcepts }: { prerequisites: any[]
                 <span style={{ color: '#059669' }}>● Know it</span>
                 <span style={{ color: '#D97706' }}>● Partial</span>
                 <span style={{ color: '#7C3AED' }}>● Learning target</span>
+            </div>
+        </div>
+    );
+}
+
+/* ─── Curriculum Preview ─── */
+function CurriculumPreview({ topic, framework, learnerLevel }: { topic: string; framework: string; learnerLevel: string }) {
+    const curriculum = [
+        { title: 'Introduction & Foundations', duration: '15 min', concepts: ['Basic concepts', 'Key terminology'] },
+        { title: 'Core Principles', duration: '25 min', concepts: ['Fundamental rules', 'Important patterns'] },
+        { title: 'Practical Application', duration: '30 min', concepts: ['Real-world examples', 'Hands-on practice'] },
+        { title: 'Advanced Topics', duration: '20 min', concepts: ['Complex scenarios', 'Best practices'] },
+        { title: 'Assessment & Review', duration: '15 min', concepts: ['Knowledge check', 'Progress review'] },
+    ];
+
+    const downloadCurriculum = () => {
+        const content = `Learning Curriculum: ${topic}\n\nFramework: ${framework}\nLevel: ${learnerLevel}\n\n${curriculum.map((lesson, i) =>
+            `Lesson ${i + 1}: ${lesson.title}\nDuration: ${lesson.duration}\nConcepts: ${lesson.concepts.join(', ')}\n`
+        ).join('\n')}`;
+
+        const blob = new Blob([content], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${topic.replace(/\s+/g, '_')}_curriculum.txt`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
+    const downloadMindMap = () => {
+        const mindMapContent = `Mind Map for: ${topic}
+
+${curriculum.map((lesson, i) => `${'  '.repeat(i)}${lesson.title}
+${'  '.repeat(i + 1)}├─ ${lesson.concepts[0]}
+${'  '.repeat(i + 1)}└─ ${lesson.concepts[1] || 'Practice'}`).join('\n')}
+
+Learning Framework: ${framework}
+Target Level: ${learnerLevel}`;
+
+        const blob = new Blob([mindMapContent], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${topic.replace(/\s+/g, '_')}_mindmap.txt`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
+    return (
+        <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <div>
+                    <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>{topic}</h3>
+                    <p style={{ margin: 4, fontSize: 13, color: 'var(--text-secondary)' }}>
+                        Framework: {framework} • Level: {learnerLevel}
+                    </p>
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                    <button className="btn btn-secondary btn-sm" onClick={downloadMindMap}>
+                        Download mind map
+                    </button>
+                    <button className="btn btn-secondary btn-sm" onClick={downloadCurriculum}>
+                        Download curriculum
+                    </button>
+                </div>
+            </div>
+
+            {/* Mind Map Visualization */}
+            <div style={{ background: 'var(--bg-subtle)', borderRadius: 12, padding: 16, marginBottom: 16 }}>
+                <h4 style={{ margin: 0, marginBottom: 12, fontSize: 14, fontWeight: 600 }}>Learning Path Mind Map</h4>
+                <div style={{ fontFamily: 'JetBrains Mono', fontSize: 13, lineHeight: 1.6, color: 'var(--text-primary)' }}>
+                    <div style={{ marginBottom: 8 }}>
+                        <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{topic}</span>
+                    </div>
+                    {curriculum.map((lesson, i) => (
+                        <div key={i} style={{ marginLeft: i * 20, marginBottom: 6 }}>
+                            <div style={{ color: '#059669', fontWeight: 500 }}>
+                                {'  '.repeat(i)}└─ {lesson.title} ({lesson.duration})
+                            </div>
+                            {lesson.concepts.map((concept, j) => (
+                                <div key={j} style={{ marginLeft: (i + 1) * 20, color: 'var(--text-secondary)' }}>
+                                    {'  '.repeat(i + 1)}├─ {concept}
+                                </div>
+                            ))}
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* Detailed Curriculum */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {curriculum.map((lesson, i) => (
+                    <div key={i} style={{
+                        display: 'flex', alignItems: 'center', gap: 12,
+                        padding: 12, borderRadius: 8, background: 'var(--bg-subtle)',
+                        border: '1px solid var(--border)'
+                    }}>
+                        <div style={{
+                            width: 32, height: 32, borderRadius: '50%',
+                            background: 'var(--accent)', color: '#fff',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 14, fontWeight: 600
+                        }}>
+                            {i + 1}
+                        </div>
+                        <div style={{ flex: 1 }}>
+                            <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>{lesson.title}</h4>
+                            <p style={{ margin: 2, fontSize: 12, color: 'var(--text-secondary)' }}>
+                                {lesson.duration} • {lesson.concepts.join(', ')}
+                            </p>
+                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 500 }}>
+                            {lesson.duration}
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            <div style={{ marginTop: 16, padding: 12, background: 'var(--bg-muted)', borderRadius: 8 }}>
+                <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary)' }}>
+                    <strong>Total Duration:</strong> ~2 hours • <strong>Lessons:</strong> {curriculum.length} •
+                    <strong>Assessment:</strong> Interactive quiz at the end
+                </p>
             </div>
         </div>
     );

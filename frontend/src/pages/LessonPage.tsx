@@ -10,11 +10,12 @@ import { useConfusionDetector } from '../hooks/useConfusionDetector';
 import { useVoiceRecorder } from '../hooks/useVoiceRecorder';
 import type { LessonContent } from '../store/lessonStore';
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API = import.meta.env.VITE_API_URL || '';
 
 const FRAMEWORK_LABELS: Record<string, string[]> = {
     gagne: ['Gain Attention', 'Objectives', 'Recall', 'Content', 'Guidance', 'Practice', 'Feedback', 'Assessment', 'Retention'],
     merrill: ['Problem', 'Activation', 'Demonstration', 'Application', 'Integration'],
+    bloom: ['Remember', 'Understand', 'Apply', 'Analyze', 'Evaluate', 'Create'],
 };
 
 export default function LessonPage() {
@@ -359,7 +360,7 @@ _stdout_capture.getvalue()
                     background: 'linear-gradient(135deg, var(--accent-light), var(--bg-subtle))',
                     border: '1px solid var(--border)',
                 }}>
-                    <p style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>🎉 Lesson Complete!</p>
+                    <p style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>Lesson complete</p>
                     <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }}>Ready to test your understanding?</p>
                     <button className="btn btn-primary btn-lg" onClick={() => navigate('/assessment')} style={{ minWidth: 200 }}>
                         Take Assessment →

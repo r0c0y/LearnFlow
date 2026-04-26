@@ -1,15 +1,19 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Editor from '@monaco-editor/react';
+import { InlineMath, BlockMath } from 'react-katex';
+import 'katex/dist/katex.min.css';
 import { DndContext, closestCenter } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, arrayMove, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useLessonStore } from '../store/lessonStore';
 import { useAssessmentStore } from '../store/assessmentStore';
 import { useVoiceRecorder } from '../hooks/useVoiceRecorder';
+import { useSpacedRepetition } from '../hooks/useSpacedRepetition';
+import { useAuthStore } from '../store/authStore';
+import { authFetch } from '../utils/api';
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-const AGENT = import.meta.env.VITE_AGENT_URL || 'http://localhost:8000';
+const API = import.meta.env.VITE_API_URL || '';
 
 export default function AssessmentPage() {
     const { lessons, lessonReady } = useLessonStore();
@@ -23,34 +27,104 @@ export default function AssessmentPage() {
     const navigate = useNavigate();
 
     const lesson = lessons[0];
+    const { scheduleReview } = useSpacedRepetition();
 
     useEffect(() => {
         if (!lesson) return;
         (async () => {
-            // Classify topic
-            const clsRes = await fetch(`${AGENT}/classify/topic`, {
+            // Classify topic and choose a safe fallback type
+            const clsRes = await fetch(`${API}/api/classify/topic`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ lesson_content: JSON.stringify(lesson).slice(0, 3000) }),
             });
             const cls = await clsRes.json();
-            setAssessmentType(cls.primary_type || 'mcq');
+            const defaultType = (cls.primary_type || 'mcq') as AssessmentType;
+            setAssessmentType(defaultType);
 
-            // Build questions from lessons
-            const qs = lessons.map((l, i) => ({
-                index: i,
-                question: l.assessment?.question || '',
-                options: l.assessment?.options || [],
-                type: cls.primary_type || 'mcq',
-                difficulty: 'medium' as const,
-                correct_answer: l.assessment?.correct_answer,
-                rubric: l.assessment?.rubric,
-                starter_code: l.exercise?.starter_code || '',
-                expected_output: '',
-            })).filter(q => q.question);
-            setQuestions(qs);
+            // Build a richer question set with fallbacks for missing content
+            const baseQuestions = lessons.flatMap((l, i) => {
+                const questionText = l.assessment?.question || l.title ? `What is the main idea of "${l.title}"?` : `Summarize the primary concept from this lesson section.`;
+                const questionType = (l.assessment?.type as AssessmentType) || defaultType;
+                const hasOptions = Array.isArray(l.assessment?.options) && l.assessment.options.length > 0;
+
+                const item = {
+                    index: i,
+                    question: questionText,
+                    options: hasOptions ? l.assessment?.options || [] : [],
+                    type: hasOptions ? questionType : questionType === 'mcq' ? 'written' as AssessmentType : questionType,
+                    difficulty: 'medium' as const,
+                    correct_answer: l.assessment?.correct_answer || '',
+                    rubric: l.assessment?.rubric || 'Provide a concise, accurate response.',
+                    starter_code: l.exercise?.starter_code || '',
+                    expected_output: '',
+                };
+
+                const extras = [] as any[];
+                if (l.objectives?.length) {
+                    extras.push({
+                        index: lessons.length + extras.length,
+                        question: `Which objective does this section support? ${l.objectives[0]}`,
+                        options: [],
+                        type: 'written' as AssessmentType,
+                        difficulty: 'medium' as const,
+                        correct_answer: '',
+                        rubric: 'Use the lesson objective to answer clearly.',
+                        starter_code: '',
+                        expected_output: '',
+                    });
+                }
+
+                return [item, ...extras];
+            }).filter(q => q.question);
+
+            const minimumCount = 5;
+            const fullQuestions = [...baseQuestions];
+            while (fullQuestions.length < minimumCount && lessons.length > 0) {
+                const source = lessons[fullQuestions.length % lessons.length];
+                fullQuestions.push({
+                    index: fullQuestions.length,
+                    question: source.title ? `Review: what did you learn from "${source.title}"?` : `Review the section and summarize the key point.`,
+                    options: [],
+                    type: 'written' as AssessmentType,
+                    difficulty: 'medium' as const,
+                    correct_answer: '',
+                    rubric: 'Write a short, accurate summary.',
+                    starter_code: '',
+                    expected_output: '',
+                });
+            }
+
+            setQuestions(fullQuestions);
             setLoading(false);
         })();
     }, [lesson]);
+
+    const { token } = useAuthStore();
+
+    async function saveLessonResult(score: number) {
+        if (!token || !lesson) return;
+        try {
+            await authFetch(`${API}/api/save`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    lesson: {
+                        id: lesson.lesson_id,
+                        title: lesson.title || 'Generated lesson',
+                        subdomain: null,
+                        content_json: lesson,
+                        blueprint_json: null,
+                        assessment_json: lesson.assessment || null,
+                        score,
+                        date_assessed: new Date().toISOString(),
+                        iterations_needed: 0,
+                        status: 'complete',
+                    },
+                }),
+            });
+        } catch (error) {
+            console.warn('Failed to save lesson result:', error);
+        }
+    }
 
     // Adaptive difficulty — after each answer
     async function handleAnswer(ans: string) {
@@ -86,6 +160,8 @@ export default function AssessmentPage() {
             setScoreReport({ overall_score: 0, per_question: [], weak_areas: [], summary: data.error || 'Assessment scoring failed — please retry.' });
         } else {
             setScoreReport(data);
+            await saveLessonResult(Number(data.overall_score || 0));
+            await scheduleReview(lesson.lesson_id, data.concept_scores || {});
         }
         setSubmitted(true);
     }
@@ -109,7 +185,7 @@ export default function AssessmentPage() {
 
     if (!lessonReady) return (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '50vh', flexDirection: 'column', gap: 12 }}>
-            <span className="badge badge-muted" style={{ fontSize: 13 }}>🔒 Complete the lesson first</span>
+            <span className="badge badge-muted" style={{ fontSize: 13 }}>Complete the lesson first</span>
             <button className="btn btn-primary" onClick={() => navigate('/lesson')}>Go to Lesson</button>
         </div>
     );
@@ -126,6 +202,7 @@ export default function AssessmentPage() {
     const q = questions[currentIndex];
     if (!q) return null;
 
+    const questionType = q.type || assessmentType;
     const progress = ((currentIndex) / questions.length) * 100;
 
     return (
@@ -146,20 +223,29 @@ export default function AssessmentPage() {
             </div>
 
             {/* Interface by type */}
-            {assessmentType === 'mcq' && (
-                <MCQInterface question={q} selected={answers[currentIndex]} onSelect={(ans: string) => { setAnswer(currentIndex, ans); handleAnswer(ans); }} onConfidence={(c: string) => setConfidence(currentIndex, c)} confidence={confidence[currentIndex]} />
+            {questionType === 'mcq' && (
+                <MCQInterface
+                    question={q}
+                    selected={answers[currentIndex]}
+                    onSelect={(ans: string) => { setAnswer(currentIndex, ans); handleAnswer(ans); }}
+                    onConfidence={(c: string) => setConfidence(currentIndex, c)}
+                    confidence={confidence[currentIndex]}
+                />
             )}
-            {assessmentType === 'coding' && (
+            {questionType === 'written' && (
+                <WritingInterface value={answers[currentIndex] || ''} onChange={(v: string) => setAnswer(currentIndex, v)} />
+            )}
+            {questionType === 'coding' && (
                 <CodingInterface question={q} answer={answers[currentIndex] || q.starter_code || ''} onChange={(v: string) => setAnswer(currentIndex, v || '')} />
             )}
-            {assessmentType === 'fill_blank' && (
+            {questionType === 'fill_blank' && (
                 <FillBlankInterface question={q} answers={answers} currentIndex={currentIndex} onAnswer={setAnswer} />
             )}
-            {assessmentType === 'drag_drop' && (
+            {questionType === 'drag_drop' && (
                 <DragDropInterface question={q} onAnswer={(v: string) => setAnswer(currentIndex, v)} />
             )}
-            {assessmentType === 'written' && (
-                <WrittenInterface value={answers[currentIndex] || ''} onChange={(v: string) => setAnswer(currentIndex, v)} />
+            {questionType === 'math' && (
+                <MathInterface question={q} onAnswer={(v: string) => setAnswer(currentIndex, v)} />
             )}
 
             {/* Nav buttons */}
@@ -195,8 +281,8 @@ export default function AssessmentPage() {
                 }}
                 aria-label="Get hint"
             >
-                {hintLoading ? <span className="animate-spin" style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block' }} /> : '🎤'}
-                Hint {hintLevel > 1 ? `(-${hintLevel === 2 ? 5 : 10}pts)` : ''}
+                {hintLoading ? <span className="animate-spin" style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block' }} /> : 'Hint'}
+                {hintLevel > 1 ? ` (-${hintLevel === 2 ? 5 : 10} pts)` : ''}
             </button>
         </div>
     );
@@ -204,9 +290,11 @@ export default function AssessmentPage() {
 
 /* ─── MCQ Interface ─── */
 function MCQInterface({ question, selected, onSelect, onConfidence, confidence }: any) {
+    const hasOptions = Array.isArray(question.options) && question.options.length > 0;
+
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {question.options.map((opt: string, i: number) => {
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {hasOptions ? question.options.map((opt: string, i: number) => {
                 const isSelected = selected === opt;
                 return (
                     <button key={i} onClick={() => onSelect(opt)} style={{
@@ -222,7 +310,13 @@ function MCQInterface({ question, selected, onSelect, onConfidence, confidence }
                         <span style={{ fontSize: 14 }}>{opt}</span>
                     </button>
                 );
-            })}
+            }) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: 13 }}>No answer options were provided. Please type the best response below.</p>
+                    <textarea value={selected || ''} onChange={e => onSelect(e.target.value)}
+                        className="textarea" style={{ minHeight: 120, fontSize: 14, padding: 14 }} />
+                </div>
+            )}
 
             {selected && (
                 <div className="animate-fade-in" style={{ marginTop: 8 }}>
@@ -293,17 +387,18 @@ function FillBlankInterface({ question, answers, currentIndex, onAnswer }: any) 
 
 /* ─── Drag Drop Interface ─── */
 function DragDropInterface({ question, onAnswer }: any) {
-    const items = question.options?.map((o: string, i: number) => ({ id: String(i), label: o })) || [];
-    const [order, setOrder] = useState(items);
+    type DragItem = { id: string; label: string };
+    const items: DragItem[] = question.options?.map((o: string, i: number) => ({ id: String(i), label: o })) || [];
+    const [order, setOrder] = useState<DragItem[]>(items);
 
     function handleDragEnd(event: any) {
         const { active, over } = event;
         if (active.id !== over?.id) {
-            setOrder((o: typeof items) => {
-                const oldIdx = o.findIndex((i: typeof items[0]) => i.id === active.id);
-                const newIdx = o.findIndex((i: typeof items[0]) => i.id === over.id);
+            setOrder((o: DragItem[]) => {
+                const oldIdx = o.findIndex((i: DragItem) => i.id === active.id);
+                const newIdx = o.findIndex((i: DragItem) => i.id === over.id);
                 const newOrder = arrayMove(o, oldIdx, newIdx);
-                onAnswer(newOrder.map((i: typeof items[0]) => i.label).join('|'));
+                onAnswer(newOrder.map((i: DragItem) => i.label).join('|'));
                 return newOrder;
             });
         }
@@ -311,9 +406,9 @@ function DragDropInterface({ question, onAnswer }: any) {
 
     return (
         <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={order.map(i => i.id)} strategy={verticalListSortingStrategy}>
+            <SortableContext items={order.map((i: DragItem) => i.id)} strategy={verticalListSortingStrategy}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {order.map((item, idx) => <SortableItem key={item.id} id={item.id} idx={idx + 1} label={item.label} />)}
+                    {order.map((item: DragItem, idx: number) => <SortableItem key={item.id} id={item.id} idx={idx + 1} label={item.label} />)}
                 </div>
             </SortableContext>
         </DndContext>
@@ -342,6 +437,35 @@ function WrittenInterface({ value, onChange }: { value: string; onChange: (v: st
     );
 }
 
+/* ─── Math Interface ─── */
+function MathInterface({ question, onAnswer }: { question: any; onAnswer: (v: string) => void }) {
+    const [answer, setAnswer] = useState('');
+    const [showSolution, setShowSolution] = useState(false);
+
+    return (
+        <div>
+            <div className="card-subtle" style={{ padding: 16, marginBottom: 12 }}>
+                <p style={{ fontSize: 16, marginBottom: 12 }}>{question.question}</p>
+                {question.question.includes('$') && <BlockMath math={question.question.replace(/\$/g, '')} />}
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <input className="input" placeholder="Enter your answer..." value={answer} onChange={e => { setAnswer(e.target.value); onAnswer(e.target.value); }} />
+                {answer && <InlineMath math={answer} />}
+            </div>
+            {question.correct_answer && (
+                <button className="btn btn-ghost btn-sm" style={{ marginTop: 8 }} onClick={() => setShowSolution(!showSolution)}>
+                    {showSolution ? 'Hide' : 'Show'} Solution
+                </button>
+            )}
+            {showSolution && (
+                <div className="card-accent animate-fade-in" style={{ marginTop: 8 }}>
+                    <strong>Solution:</strong> <InlineMath math={question.correct_answer} />
+                </div>
+            )}
+        </div>
+    );
+}
+
 /* ─── Score Report ─── */
 function ScoreReport({ report, questions, hintDeductions }: any) {
     const navigate = useNavigate();
@@ -364,8 +488,8 @@ function ScoreReport({ report, questions, hintDeductions }: any) {
                         style={{ transition: 'stroke-dashoffset 800ms ease-out' }} />
                     <text x="48" y="54" textAnchor="middle" fontSize="22" fontWeight="700" fill={passed ? 'var(--success)' : 'var(--error)'}>{finalScore}</text>
                 </svg>
-                <h2 className="text-h2">{passed ? '🎉 Great job!' : 'Keep practicing'}</h2>
-                <p style={{ color: 'var(--text-secondary)', marginTop: 4 }}>{report.overall_score} points · -{hintDeductions} hint deductions</p>
+                <h2 className="text-h2">{passed ? 'Strong performance' : 'Keep practicing'}</h2>
+                <p style={{ color: 'var(--text-secondary)', marginTop: 4 }}>{report.overall_score} points · {hintDeductions} points adjusted for hints</p>
             </div>
 
             {/* Weak areas */}
@@ -385,7 +509,9 @@ function ScoreReport({ report, questions, hintDeductions }: any) {
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <span className="badge badge-muted">Q{i + 1}</span>
                             <span style={{ fontSize: 13, fontWeight: 500 }}>{questions[i]?.question?.slice(0, 60)}...</span>
-                            <span style={{ marginLeft: 'auto' }}>{q.correct ? '✅' : '❌'}</span>
+                            <span style={{ marginLeft: 'auto', fontSize: 12, color: q.correct ? 'var(--success)' : 'var(--error)' }}>
+                                {q.correct ? 'Correct' : 'Incorrect'}
+                            </span>
                         </div>
                         {!q.correct && (
                             <div style={{ marginTop: 8 }}>
@@ -403,10 +529,10 @@ function ScoreReport({ report, questions, hintDeductions }: any) {
 
             {/* Spaced repetition */}
             <div className="card-accent" style={{ marginBottom: 24 }}>
-                <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>📅 Recommended review schedule</p>
+                <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Recommended review schedule</p>
                 {report.weak_areas?.map((a: string, i: number) => {
                     const days = finalScore < 50 ? 1 : finalScore <= 75 ? 3 : 7;
-                    return <p key={i} style={{ fontSize: 13, color: 'var(--text-secondary)' }}>● {a} — review in {days} day{days > 1 ? 's' : ''}</p>;
+                    return <p key={i} style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{a} — review in {days} day{days > 1 ? 's' : ''}</p>;
                 })}
             </div>
 

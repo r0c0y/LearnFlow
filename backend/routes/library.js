@@ -2,18 +2,23 @@ import express from "express";
 import { db } from "../db/client.js";
 import { getGroq, FAST_MODEL } from "../services/groq.js";
 import { v4 as uuidv4 } from "uuid";
+import { authenticate } from "../middleware/auth.js";
 
 const router = express.Router();
+router.use(authenticate);
 
 // GET /api/library — all lessons + folder tree
 router.get("/", async (req, res) => {
     try {
-        const { rows: lessons } = await db.execute(`
-      SELECT l.*, lf.folder_id
+        const userId = req.user.id;
+        const { rows: lessons } = await db.execute({
+            sql: `SELECT l.*, lf.folder_id
       FROM lessons l
       LEFT JOIN lesson_folders lf ON l.id = lf.lesson_id
-      ORDER BY l.date_created DESC
-    `);
+      WHERE l.user_id = ?
+      ORDER BY l.date_created DESC`,
+            args: [userId],
+        });
         const { rows: folders } = await db.execute("SELECT * FROM folders ORDER BY name");
 
         // Build folder tree
@@ -44,6 +49,7 @@ router.get("/", async (req, res) => {
 // POST /api/save — save lesson, AI auto-suggests folder
 router.post("/save", async (req, res) => {
     const { lesson, folder_id } = req.body;
+    const userId = req.user.id;
     try {
         const id = lesson.id || uuidv4();
 
@@ -67,8 +73,8 @@ router.post("/save", async (req, res) => {
 
         await db.execute({
             sql: `INSERT OR REPLACE INTO lessons
-            (id, title, domain, subdomain, content_json, blueprint_json, assessment_json, score, date_created, date_assessed, iterations_needed, status)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+            (id, title, domain, subdomain, content_json, blueprint_json, assessment_json, score, date_created, date_assessed, iterations_needed, status, user_id)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
             args: [
                 id, lesson.title, lesson.domain || null, lesson.subdomain || null,
                 JSON.stringify(lesson.content_json || null),
@@ -79,6 +85,7 @@ router.post("/save", async (req, res) => {
                 lesson.date_assessed || null,
                 lesson.iterations_needed || 0,
                 lesson.status || "complete",
+                userId,
             ],
         });
 

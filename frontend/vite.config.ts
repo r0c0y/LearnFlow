@@ -21,6 +21,7 @@ export default defineConfig({
                     vendor: ['react', 'react-dom', 'react-router-dom'],
                     editor: ['@monaco-editor/react'],
                     charts: ['recharts'],
+                    mammoth: ['mammoth'],
                 },
             },
         },

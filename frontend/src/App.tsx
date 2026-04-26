@@ -5,6 +5,8 @@ import PreLessonPage from './pages/PreLessonPage';
 import LessonPage from './pages/LessonPage';
 import AssessmentPage from './pages/AssessmentPage';
 import LibraryPage from './pages/LibraryPage';
+import AnalyticsPage from './pages/AnalyticsPage';
+import AuthPage from './pages/AuthPage';
 
 export default function App() {
     return (
@@ -14,11 +16,13 @@ export default function App() {
                 <Routes>
                     <Route path="/" element={<InputPage />} />
                     <Route path="/prepare" element={<PreLessonPage />} />
-                    <Route path="/lesson" element={<LessonPage />} />
-                    <Route path="/assessment" element={<AssessmentPage />} />
-                    <Route path="/library" element={<LibraryPage />} />
-                </Routes>
-            </div>
-        </BrowserRouter>
+                <Route path="/lesson" element={<LessonPage />} />
+                <Route path="/assessment" element={<AssessmentPage />} />
+                <Route path="/library" element={<LibraryPage />} />
+                <Route path="/analytics" element={<AnalyticsPage />} />
+                <Route path="/auth" element={<AuthPage />} />
+            </Routes>
+        </div>
+    </BrowserRouter>
     );
 }
