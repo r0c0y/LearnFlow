@@ -137,30 +137,37 @@ export default function PreLessonPage() {
 
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
+        let buffer = '';
 
         try {
-            let buffer = '';
             while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
-                const chunk = decoder.decode(value, { stream: true });
-                buffer += chunk;
 
-                // Process complete lines
-                const lines = buffer.split('\n');
-                buffer = lines.pop() || ''; // Keep incomplete line in buffer
+                buffer += decoder.decode(value, { stream: true });
+                
+                // SSE records are separated by double newlines
+                let parts = buffer.split('\n\n');
+                buffer = parts.pop() || ''; // Keep trailing partial part
 
-                for (const line of lines) {
-                    if (line.startsWith('data: ')) {
-                        const data = line.slice(6).trim();
-                        if (data) {
+                for (const part of parts) {
+                    const lines = part.split('\n');
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const data = line.slice(6).trim();
+                            if (!data || data === '[DONE]') continue;
+
                             try {
                                 const parsed = JSON.parse(data);
-                                const stage = STAGES.find(s => s.key === parsed.stage);
-                                if (stage) {
-                                    setStageMessage(stage.label);
-                                    setLocalProgress(stage.progress);
+                                
+                                if (parsed.stage) {
+                                    const stage = STAGES.find(s => s.key === parsed.stage);
+                                    if (stage) {
+                                        setStageMessage(stage.label);
+                                        setLocalProgress(stage.progress);
+                                    }
                                 }
+
                                 if (parsed.stage === 'complete' && parsed.data?.lessons) {
                                     const generatedLesson = parsed.data.lessons[0];
                                     const id = `lesson_${Date.now()}`;
@@ -189,13 +196,14 @@ export default function PreLessonPage() {
                                         }),
                                     }).catch(console.warn);
 
-                                    setTimeout(() => navigate('/lesson'), 600);
+                                    setLocalProgress(100);
+                                    setTimeout(() => navigate('/lesson'), 800);
                                 } else if (parsed.stage === 'error') {
                                     setError(parsed.message || 'An error occurred during lesson generation.');
                                 }
                             } catch (parseError) {
-                                console.warn('Failed to parse SSE data chunk:', parseError, 'Data:', data.slice(0, 200) + '...');
-                                // Continue processing other chunks
+                                // If parsing fails, it's likely a fragmented line. Put it back in the buffer.
+                                buffer = line + '\n\n' + buffer;
                             }
                         }
                     }

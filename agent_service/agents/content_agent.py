@@ -2,35 +2,49 @@ import json
 from groq_client import call_llm, choose_model, HEAVY_MODEL
 
 
-CONTENT_SYSTEM = """You are a world-class educator creating detailed lesson content.
+CONTENT_SYSTEM = """You are a world-class educator and subject matter expert creating comprehensive, detailed lesson content.
+Your lessons should feel like reading a well-written textbook chapter — thorough, clear, and engaging.
+
 For each lesson blueprint provided, generate rich, detailed teaching material.
 Return JSON exactly matching this format for each lesson:
 {
   "lesson_id": "L1",
   "title": "string",
-  "hook": "opening statement to grab attention",
-  "objectives": ["What you'll learn: ..."],
-  "prior_knowledge_check": "question to activate memory",
-  "explanation": "full detailed teaching prose with examples woven in — minimum 300 words",
+  "hook": "A compelling 2-3 sentence opening that explains WHY this topic matters, with a real-world scenario or surprising fact that grabs attention",
+  "objectives": ["Specific learning outcome 1", "Specific learning outcome 2", "Specific learning outcome 3"],
+  "prior_knowledge_check": "A thoughtful question that connects to what the student already knows",
+  "explanation": "DETAILED teaching content in markdown format. This MUST be at least 500 words and include:\\n\\n## Key Concepts\\nDefine and explain each core concept with clear definitions.\\n\\n## How It Works\\nStep-by-step breakdown of the mechanism/process.\\n\\n## Real-World Analogy\\nAn intuitive analogy that makes the concept click.\\n\\n## Examples\\nAt least 2-3 concrete examples with explanations.\\n\\n## Common Mistakes\\nWhat learners typically get wrong and how to avoid it.\\n\\n## Further Reading\\n- [Official Documentation](relevant_url)\\n- [Tutorial Resource](relevant_url)",
+  "summary": "A 3-4 sentence recap of the most important points from this lesson",
+  "key_takeaways": ["Takeaway 1 - the single most important thing", "Takeaway 2", "Takeaway 3"],
   "worked_example": {
-    "setup": "context and problem statement",
-    "code": "actual code if applicable — empty string if not a coding topic",
-    "walkthrough": "line-by-line or step-by-step explanation"
+    "setup": "Clear problem statement with context — what are we trying to solve? Describe the scenario in 2-3 paragraphs.",
+    "code": "Complete, well-commented, runnable code if applicable — empty string if not a coding topic",
+    "walkthrough": "EXTREMELY DETAILED line-by-line or step-by-step explanation of the example. This MUST be at least 300 words. Explain WHY each step matters, alternatives considered, and edge cases."
   },
   "exercise": {
-    "instructions": "clear instructions for what student must do",
-    "starter_code": "scaffold code if applicable — empty string if not coding",
-    "hints": ["hint1 that doesn't give answer", "hint2"],
-    "solution": "COMPLETE SOLUTION — hidden from student"
+    "instructions": "Clear, specific, multi-paragraph instructions. What is the goal? What are the constraints? Provide examples of expected output. Minimum 150 words.",
+    "starter_code": "Scaffold code with TODO comments if applicable — empty string if not coding",
+    "hints": ["Helpful hint 1 that guides without giving away", "Hint 2 with more detail", "Hint 3 with concrete approach"],
+    "solution": "COMPLETE SOLUTION with comments explaining each step"
   },
   "assessment": {
     "type": "mcq",
-    "question": "clear assessment question",
-    "options": ["A. option1", "B. option2", "C. option3", "D. option4"],
+    "question": "A thoughtful question that tests understanding, not just memorization",
+    "options": ["A. Plausible option 1", "B. Plausible option 2", "C. Plausible option 3", "D. Plausible option 4"],
     "correct_answer": "A",
-    "rubric": "evaluation criteria for written answers"
+    "rubric": "Detailed evaluation criteria for written answers"
   }
-}"""
+}
+
+CRITICAL RULES:
+1. The 'explanation' field MUST be at least 800 words with markdown headings, bullet points, and examples. Dive deep into the theory.
+2. The 'worked_example.walkthrough' field MUST be at least 300 words, breaking down the example thoroughly.
+3. The 'exercise.instructions' MUST be detailed (150+ words) providing rich context for the practice.
+4. Include relevant reference links (Wikipedia, MDN, official docs, etc.) in the explanation.
+5. Use markdown formatting: ## headings, **bold** for key terms, `code` for technical terms, bullet lists.
+6. Every concept must have at least one concrete example.
+7. The content should be self-sufficient — a student should be able to master the topic just from reading it.
+8. Include 'summary' and 'key_takeaways' fields for the review section."""
 
 
 def run_content_agent(state: dict) -> dict:
@@ -62,18 +76,29 @@ def run_content_agent(state: dict) -> dict:
         chunk_text = "\n\n".join(relevant_chunks) if relevant_chunks else "\n\n".join([c for c in list(chunk_map.values())[:3]])
         model = choose_model(chunk_text)
 
+        learner_level = state.get("learner_level", "beginner")
         user_msg = f"""
-Generate complete lesson content for:
+Generate comprehensive, detailed lesson content for:
+Topic: {lesson_bp.get("title", "Unknown")}
+Learner Level: {learner_level}
 Blueprint: {json.dumps(lesson_bp, indent=2)}
 
 Source material to teach from:
 {chunk_text[:8000]}
 
-Make the explanation thorough, engaging, and pedagogically sound.
-If this is a coding topic, include real runnable code examples.
+IMPORTANT REQUIREMENTS:
+1. Write the 'explanation' as a DETAILED, comprehensive article (minimum 800 words) using markdown with ## headings, **bold** terms, bullet lists, and code blocks. Go deep into the nuances.
+2. Ensure the 'worked_example.walkthrough' is a highly detailed, step-by-step tutorial (minimum 300 words) explaining exactly how the example works and why.
+3. Provide rich 'exercise.instructions' (minimum 150 words) that set up a realistic scenario for the student to practice.
+4. Include real reference links to documentation, Wikipedia, or learning resources (use actual URLs).
+5. Break down complex ideas into digestible pieces with analogies.
+6. Include at least 2-3 concrete examples within the explanation.
+7. Add a 'summary' field (3-4 sentence recap) and 'key_takeaways' field (list of 3 key points).
+8. If this is a coding topic, include real runnable code with detailed comments in the explanation, example, and exercise.
+9. Make content appropriate for a {learner_level} level student, but do not skimp on detail.
 """
         try:
-            raw = call_llm(model, CONTENT_SYSTEM, user_msg, max_tokens=3000)
+            raw = call_llm(model, CONTENT_SYSTEM, user_msg, max_tokens=6000)
             lesson_content = json.loads(raw)
         except Exception as e:
             print(f"Content generation failed for {lid}: {e}")

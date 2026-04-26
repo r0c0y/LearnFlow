@@ -25,6 +25,7 @@ export default function AssessmentPage() {
         scoreReport, setScoreReport, addHint, hintDeductions, replaceQuestion, reset,
         retakeKey, bumpRetakeKey, viewingReport, setViewingReport } = useAssessmentStore();
     const [loading, setLoading] = useState(true);
+    const [submitting, setSubmitting] = useState(false);
     const [hintText, setHintText] = useState('');
     const [hintLoading, setHintLoading] = useState(false);
     const [hintLevel, setHintLevel] = useState(1);
@@ -183,40 +184,55 @@ export default function AssessmentPage() {
     }
 
     async function handleSubmit() {
-        const res = await fetch(`${API}/api/assess`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                lesson_id: lesson?.lesson_id,
-                answers: Object.values(answers),
-                questions: questions.map(q => ({ question: q.question, options: q.options, correct_answer: q.correct_answer })),
-                rubric: questions.map(q => q.rubric).join('; '),
-            }),
-        });
-        const data = await res.json();
-        if (!res.ok || data.error) {
-            setScoreReport({ overall_score: 0, per_question: [], weak_areas: [], summary: data.error || 'Assessment scoring failed — please retry.' });
-        } else {
-            setScoreReport(data);
-            const finalScore = Number(data.overall_score || 0);
-            // Save lesson result
-            await saveLessonResult(finalScore);
-            // Save assessment attempt to assessments table
-            try {
-                await authFetch(`${API}/api/library/assessment`, {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        lesson_id: lesson.lesson_id,
-                        questions,
-                        answers,
-                        score_report: data,
-                        score: finalScore,
-                    }),
-                });
-            } catch (e) {
-                console.warn('Failed to save assessment attempt:', e);
+        setSubmitting(true);
+        try {
+            // Fill in empty answers so submission always works
+            const filledAnswers: Record<number, string> = {};
+            questions.forEach((_, i) => {
+                filledAnswers[i] = answers[i] || '(no answer provided)';
+            });
+
+            const res = await fetch(`${API}/api/assess`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    lesson_id: lesson?.lesson_id,
+                    answers: Object.values(filledAnswers),
+                    questions: questions.map(q => ({ question: q.question, options: q.options, correct_answer: q.correct_answer })),
+                    rubric: questions.map(q => q.rubric).join('; '),
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok || data.error) {
+                setScoreReport({ overall_score: 0, per_question: [], weak_areas: [], summary: data.error || 'Assessment scoring failed — please retry.' });
+            } else {
+                setScoreReport(data);
+                const finalScore = Number(data.overall_score || 0);
+                // Save lesson result
+                await saveLessonResult(finalScore);
+                // Save assessment attempt to assessments table
+                try {
+                    await authFetch(`${API}/api/library/assessment`, {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            lesson_id: lesson.lesson_id,
+                            questions,
+                            answers: filledAnswers,
+                            score_report: data,
+                            score: finalScore,
+                        }),
+                    });
+                } catch (e) {
+                    console.warn('Failed to save assessment attempt:', e);
+                }
+                try {
+                    await scheduleReview(lesson.lesson_id, data.concept_scores || {});
+                } catch (_) {}
             }
-            await scheduleReview(lesson.lesson_id, data.concept_scores || {});
+        } catch (err) {
+            console.error('Assessment submission error:', err);
+            setScoreReport({ overall_score: 0, per_question: [], weak_areas: [], summary: 'Network error — please check your connection and retry.' });
         }
+        setSubmitting(false);
         setSubmitted(true);
     }
 
@@ -331,10 +347,18 @@ export default function AssessmentPage() {
 
                 {/* Actions */}
                 <div style={{ display: 'flex', gap: 12 }}>
-                    <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => { setViewingReport(null); navigate('/library'); }}>
-                        Back to Library
+                    <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => { setViewingReport(null); navigate('/lesson'); }}>
+                        Re-study Lesson
                     </button>
                     <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleRetake}>
+                        Retake Assessment
+                    </button>
+                </div>
+                <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+                    <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => { setViewingReport(null); navigate('/library'); }}>
+                        Back to Library
+                    </button>
+                    <button className="btn btn-ghost" style={{ flex: 1 }} onClick={handleRetake}>
                         New Assessment
                     </button>
                 </div>
@@ -408,8 +432,10 @@ export default function AssessmentPage() {
                         Next <ChevronRight size={14} />
                     </button>
                 ) : (
-                    <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleSubmit} disabled={!answers[currentIndex]}>
-                        Submit Assessment
+                    <button className="btn btn-primary" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }} onClick={handleSubmit} disabled={submitting}>
+                        {submitting ? (
+                            <><span className="animate-spin" style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block' }} /> Grading...</>
+                        ) : 'Submit Assessment'}
                     </button>
                 )}
             </div>

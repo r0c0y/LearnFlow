@@ -8,16 +8,10 @@ import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { useLessonStore } from '../store/lessonStore';
 import { useConfusionDetector } from '../hooks/useConfusionDetector';
 import type { LessonContent } from '../store/lessonStore';
-import { ChevronRight, Lightbulb, Sparkles, RefreshCw, Play, Check, Send, MessageSquare, X } from 'lucide-react';
+import { ChevronRight, Lightbulb, Sparkles, RefreshCw, Play, Check, Send, MessageSquare, X, BookOpen, Clock, Target } from 'lucide-react';
 import FolderPicker from '../components/FolderPicker';
 
 const API = import.meta.env.VITE_API_URL || '';
-
-const FRAMEWORK_LABELS: Record<string, string[]> = {
-    gagne: ['Gain Attention', 'Objectives', 'Recall', 'Content', 'Guidance', 'Practice', 'Feedback', 'Assessment', 'Retention'],
-    merrill: ['Problem', 'Activation', 'Demonstration', 'Application', 'Integration'],
-    bloom: ['Remember', 'Understand', 'Apply', 'Analyze', 'Evaluate', 'Create'],
-};
 
 export default function LessonPage() {
     const navigate = useNavigate();
@@ -41,75 +35,98 @@ export default function LessonPage() {
     const lesson = lessons[currentLessonIndex] || lessons[0];
     const sections = buildSections(lesson, framework);
     const current = sections[sectionIdx];
+    const progress = ((sectionIdx + 1) / sections.length) * 100;
 
     return (
-        <div style={{ display: 'flex', height: 'calc(100vh - 52px)', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', height: 'calc(100vh - 52px)', overflow: 'hidden', background: 'var(--bg-base)' }}>
             {/* LEFT SIDEBAR */}
             <aside style={{
-                width: 220, flexShrink: 0, borderRight: '1px solid var(--border)',
-                background: 'var(--bg-subtle)', padding: '20px 16px', overflowY: 'auto',
+                width: 260, flexShrink: 0, borderRight: '1px solid var(--border)',
+                background: 'var(--bg-subtle)', padding: '24px 16px', overflowY: 'auto',
                 display: 'flex', flexDirection: 'column',
             }}>
-                <p className="text-label" style={{ color: 'var(--text-tertiary)', marginBottom: 16 }}>LESSON PROGRESS</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24, padding: '0 8px' }}>
+                    <BookOpen size={20} color="var(--accent)" />
+                    <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>Curriculum</span>
+                </div>
+
                 <div style={{ flex: 1 }}>
                     {sections.map((s, i) => (
-                        <SidebarItem key={i} label={s.label} status={i < sectionIdx ? 'done' : i === sectionIdx ? 'active' : 'pending'}
-                            onClick={() => i <= sectionIdx && setSectionIdx(i)} />
+                        <SidebarItem 
+                            key={i} 
+                            label={s.label} 
+                            index={i + 1}
+                            status={i < sectionIdx ? 'done' : i === sectionIdx ? 'active' : 'pending'}
+                            onClick={() => i <= sectionIdx && setSectionIdx(i)} 
+                        />
                     ))}
                 </div>
-                <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
-                    <p className="text-label" style={{ color: 'var(--text-tertiary)' }}>
-                        Time spent: {elapsedMin} min
-                    </p>
+
+                <div style={{ marginTop: 'auto', paddingTop: 16, borderTop: '1px solid var(--border)', padding: '16px 8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-tertiary)', fontSize: 12 }}>
+                        <Clock size={14} />
+                        <span>Session: {elapsedMin} min</span>
+                    </div>
                 </div>
             </aside>
 
-            {/* MAIN CONTENT */}
-            <main style={{ flex: 1, overflowY: 'auto', padding: '40px 48px', maxWidth: 720, margin: '0 auto', width: '100%' }}>
-                {current && (
-                    <LessonSection
-                        key={sectionIdx}
-                        section={current}
-                        lesson={lesson}
-                        sectionIndex={sectionIdx}
-                        total={sections.length}
-                        isLast={sectionIdx === sections.length - 1}
-                        onNext={() => {
-                            if (sectionIdx === sections.length - 1) {
-                                navigate('/assessment');
-                            } else {
-                                setSectionIdx(i => Math.min(i + 1, sections.length - 1));
-                            }
-                        }}
-                        onPrev={() => setSectionIdx(i => Math.max(i - 1, 0))}
-                    />
-                )}
-            </main>
+            {/* MAIN CONTENT AREA */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}>
+                {/* TOP PROGRESS BAR */}
+                <div style={{ height: 4, width: '100%', background: 'var(--border)', position: 'absolute', top: 0, zIndex: 10 }}>
+                    <div style={{ height: '100%', width: `${progress}%`, background: 'var(--accent)', transition: 'width 300ms ease' }} />
+                </div>
+
+                <main style={{ flex: 1, overflowY: 'auto', padding: '48px 48px', maxWidth: 840, margin: '0 auto', width: '100%' }}>
+                    {current && (
+                        <LessonSection
+                            key={sectionIdx}
+                            section={current}
+                            lesson={lesson}
+                            sectionIndex={sectionIdx}
+                            total={sections.length}
+                            isLast={sectionIdx === sections.length - 1}
+                            onNext={() => {
+                                if (sectionIdx === sections.length - 1) {
+                                    navigate('/assessment');
+                                } else {
+                                    setSectionIdx(i => Math.min(i + 1, sections.length - 1));
+                                }
+                            }}
+                            onPrev={() => setSectionIdx(i => Math.max(i - 1, 0))}
+                        />
+                    )}
+                </main>
+            </div>
 
             {/* RIGHT DISCUSSION PANEL */}
             <button
                 onClick={() => setPanelOpen(o => !o)}
                 style={{
-                    position: 'fixed', right: panelOpen ? 308 : 16, top: '50%', transform: 'translateY(-50%)',
-                    width: 40, height: 40, borderRadius: '50%', background: 'var(--bg-base)',
+                    position: 'fixed', right: panelOpen ? 316 : 24, top: '50%', transform: 'translateY(-50%)',
+                    width: 48, height: 48, borderRadius: '12px', background: 'var(--bg-base)',
                     border: '1px solid var(--border)', cursor: 'pointer', display: 'flex', alignItems: 'center',
-                justifyContent: 'center', color: 'var(--text-secondary)', zIndex: 50, transition: 'right 250ms ease',
+                    justifyContent: 'center', color: 'var(--text-secondary)', zIndex: 50, transition: 'all 250ms cubic-bezier(0.4, 0, 0.2, 1)',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
                 }}
                 aria-label="Open discussion panel"
             >
-                <MessageSquare size={20} />
+                <MessageSquare size={22} />
             </button>
 
             {panelOpen && (
                 <aside style={{
-                    width: 300, flexShrink: 0, borderLeft: '1px solid var(--border)',
+                    width: 320, flexShrink: 0, borderLeft: '1px solid var(--border)',
                     background: 'var(--bg-base)', display: 'flex', flexDirection: 'column',
                     position: 'fixed', right: 0, top: 52, height: 'calc(100vh - 52px)', zIndex: 40,
-                    animation: 'fadeInUp 250ms ease',
+                    animation: 'slideInRight 250ms ease-out',
                 }}>
-                    <div style={{ padding: '16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span className="text-h3">Discussion</span>
-                        <button className="btn-icon" onClick={() => setPanelOpen(false)}><X size={18} /></button>
+                    <div style={{ padding: '20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <Sparkles size={18} color="var(--accent)" />
+                            <span style={{ fontSize: 16, fontWeight: 600 }}>Tutor AI</span>
+                        </div>
+                        <button className="btn-icon" onClick={() => setPanelOpen(false)}><X size={20} /></button>
                     </div>
                     <DiscussionTextTab lessonContent={lesson.explanation + ' ' + lesson.hook} />
                 </aside>
@@ -118,17 +135,54 @@ export default function LessonPage() {
     );
 }
 
+/* ─── Sidebar Item ─── */
+function SidebarItem({ label, index, status, onClick }: { label: string; index: number; status: 'done' | 'active' | 'pending'; onClick: () => void }) {
+    const isActive = status === 'active';
+    const isDone = status === 'done';
+
+    return (
+        <div 
+            onClick={onClick}
+            style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 12, 
+                padding: '12px 12px', 
+                borderRadius: '12px',
+                marginBottom: 4, 
+                cursor: status !== 'pending' ? 'pointer' : 'default',
+                transition: 'all 200ms ease',
+                background: isActive ? 'var(--accent-light)' : 'transparent',
+                border: `1px solid ${isActive ? 'var(--accent)' : 'transparent'}`
+            }}
+        >
+            <div style={{
+                width: 24, height: 24, borderRadius: '6px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: isDone ? 'var(--accent)' : isActive ? 'var(--bg-base)' : 'var(--bg-subtle)',
+                border: `1px solid ${isActive ? 'var(--accent)' : 'var(--border)'}`,
+                fontSize: 11, fontWeight: 700,
+                color: isDone ? '#fff' : isActive ? 'var(--accent)' : 'var(--text-tertiary)'
+            }}>
+                {isDone ? <Check size={14} strokeWidth={3} /> : index}
+            </div>
+            <span style={{
+                fontSize: 13, 
+                fontWeight: isActive ? 600 : 400,
+                color: isActive ? 'var(--text-primary)' : isDone ? 'var(--text-secondary)' : 'var(--text-tertiary)',
+            }}>{label}</span>
+        </div>
+    );
+}
+
 /* ─── Lesson Section ─── */
 function LessonSection({ section, lesson, sectionIndex, total, isLast, onNext, onPrev }: any) {
     const navigate = useNavigate();
-    const { recordExplainClick, triggered, dismiss } = useConfusionDetector(`section_${sectionIndex}`);
-    const [explainContent, setExplainContent] = useState<string | null>(null);
-    const [explainLoading, setExplainLoading] = useState(false);
-    const [branchContent, setBranchContent] = useState<any | null>(null);
-    const [branchLoading, setBranchLoading] = useState(false);
     const [termPopover, setTermPopover] = useState<{ term: string; def: string; x: number; y: number } | null>(null);
     const [codeOutput, setCodeOutput] = useState('');
     const [codeValue, setCodeValue] = useState((lesson.exercise?.starter_code || '') as string);
+    const { recordExplainClick, triggered, dismiss } = useConfusionDetector(`section_${sectionIndex}`);
+    const [explainContent, setExplainContent] = useState<string | null>(null);
+    const [explainLoading, setExplainLoading] = useState(false);
 
     async function handleExplain(style: string) {
         setExplainLoading(true);
@@ -143,278 +197,127 @@ function LessonSection({ section, lesson, sectionIndex, total, isLast, onNext, o
         } finally { setExplainLoading(false); }
     }
 
-    async function handleBranch(type: 'example' | 'rewrite') {
-        setBranchLoading(true);
-        try {
-            const res = await fetch(`${API}/api/lesson/branch`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ section_id: sectionIndex, type, section_content: section, lesson_title: lesson.title }),
-            });
-            // Handle HTTP errors cleanly
-            if (!res.ok) {
-                const errorData = await res.json();
-                throw new Error(errorData.error || 'Failed to branch lesson');
-            }
-            const data = await res.json();
-            setBranchContent(data.new_content);
-        } catch (error) {
-            console.error("Branching error:", error);
-            // Optionally, we could show an error toast or message here
-        } finally { setBranchLoading(false); }
-    }
-
-    async function handleTermClick(e: React.MouseEvent, term: string) {
-        const rect = (e.target as HTMLElement).getBoundingClientRect();
-        try {
-            const res = await fetch(`${API}/api/explain/term`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ term, lesson_context: lesson.explanation?.slice(0, 300) }),
-            });
-            const data = await res.json();
-            setTermPopover({ term, def: data.definition, x: rect.left, y: rect.bottom + 4 });
-        } catch (_) { }
-    }
-
-    async function runCode() {
-        setCodeOutput('Running...');
-        try {
-            // @ts-ignore — Pyodide loaded globally
-            if (window.pyodide) {
-                // Redirect Python input() to browser prompt() — fixes OSError [Errno 29] on stdin
-                await window.pyodide.runPythonAsync(`
-import builtins, js
-def _browser_input(prompt=""):
-    val = js.prompt(str(prompt))
-    return val if val is not None else ""
-builtins.input = _browser_input
-`);
-                // Capture printed output via StringIO
-                await window.pyodide.runPythonAsync(`
-import sys, io
-_stdout_capture = io.StringIO()
-sys.stdout = _stdout_capture
-`);
-                try {
-                    const result = await window.pyodide.runPythonAsync(codeValue);
-                    const printed = await window.pyodide.runPythonAsync(`
-sys.stdout = sys.__stdout__
-_stdout_capture.getvalue()
-`);
-                    const out = (printed ? String(printed) : '') + (result !== null && result !== undefined ? '\n→ ' + String(result) : '');
-                    setCodeOutput(out.trim() || '(ran successfully — no output)');
-                } catch (err: any) {
-                    await window.pyodide.runPythonAsync(`sys.stdout = sys.__stdout__`);
-                    throw err;
-                }
-            } else {
-                setCodeOutput('⚠️ Pyodide not loaded yet — wait a moment and try again.');
-            }
-        } catch (e: any) {
-            const msg = e.message || String(e);
-            setCodeOutput(`Error:\n${msg}`);
-        }
-    }
-
     return (
-        <div className="animate-fade-in-up">
-            {/* Section header */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                <span className="badge badge-accent">{section.label}</span>
-                <h2 className="text-h2">{lesson.title}</h2>
-            </div>
-            <div className="divider" style={{ marginBottom: 24 }} />
-
-            {/* Confusion detector banner */}
-            {triggered && (
+        <div className="animate-fade-in" style={{ paddingBottom: 64, position: 'relative' }}>
+            {/* Confusion Tooltip */}
+            {triggered && !explainContent && (
                 <div style={{
-                    background: 'var(--warning-light)', border: '1px solid #FCD34D', borderRadius: 10,
-                    padding: '12px 16px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10,
-                    animation: 'slideDown 200ms ease',
+                    position: 'fixed', bottom: 32, right: 100, zIndex: 100,
+                    background: 'var(--bg-base)', border: '1px solid var(--accent)',
+                    padding: '16px 20px', borderRadius: '16px', boxShadow: '0 12px 32px rgba(0,0,0,0.15)',
+                    display: 'flex', alignItems: 'center', gap: 16, animation: 'fadeInUp 400ms ease'
                 }}>
-                    <Lightbulb color="var(--warning)" size={18} />
-                    <span style={{ flex: 1, fontSize: 13 }}>Spending a while here? Want a different explanation?</span>
-                    <button className="btn btn-secondary btn-sm" onClick={() => { handleBranch('rewrite'); dismiss(); }}>Try different approach</button>
-                    <button className="btn btn-ghost btn-sm" onClick={dismiss}>No thanks</button>
+                    <Lightbulb size={24} color="var(--accent)" />
+                    <div>
+                        <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>Need a hand?</p>
+                        <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0 }}>I can explain this in a simpler way.</p>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                        <button className="btn btn-primary btn-sm" onClick={() => handleExplain('simpler')}>Yes, simplify</button>
+                        <button className="btn btn-ghost btn-sm" onClick={dismiss}>No thanks</button>
+                    </div>
                 </div>
             )}
 
-            {/* Main content */}
-            <div className="text-left space-y-4">
+            {/* Header */}
+            <div style={{ marginBottom: 32, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                        <div style={{ padding: '4px 10px', borderRadius: '20px', background: 'var(--accent-light)', color: 'var(--accent)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>
+                            Step {sectionIndex + 1}
+                        </div>
+                        <div style={{ height: 1, flex: 1, background: 'var(--border)' }} />
+                    </div>
+                    <h1 style={{ fontSize: 32, fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1.2 }}>{section.label}</h1>
+                </div>
+
+                <div style={{ display: 'flex', gap: 8, marginLeft: 24, marginTop: 24 }}>
+                    <button className="btn-icon" onClick={() => handleExplain('analogy')} title="Get an analogy" style={{ width: 36, height: 36 }}><Lightbulb size={18} /></button>
+                    <button className="btn-icon" onClick={() => handleExplain('simpler')} title="Simplify" style={{ width: 36, height: 36 }}><Sparkles size={18} /></button>
+                </div>
+            </div>
+
+            {/* Markdown Content */}
+            <div className="markdown-content" style={{ fontSize: 16, lineHeight: 1.8, color: 'var(--text-secondary)', position: 'relative' }}>
+                {explainLoading && (
+                    <div style={{
+                        position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.7)', 
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10,
+                        borderRadius: '12px', backdropFilter: 'blur(2px)'
+                    }}>
+                        <RefreshCw className="animate-spin" size={24} color="var(--accent)" />
+                    </div>
+                )}
                 <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
                     components={{
                         code({ node, inline, className, children, ...props }: any) {
                             const match = /language-(\w+)/.exec(className || '')
                             return !inline && match ? (
-                                <SyntaxHighlighter
-                                    style={vscDarkPlus as any}
-                                    language={match[1]}
-                                    PreTag="div"
-                                    {...props}
-                                >
-                                    {String(children).replace(/\n$/, '')}
-                                </SyntaxHighlighter>
+                                <div style={{ margin: '24px 0', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border)' }}>
+                                    <SyntaxHighlighter
+                                        style={vscDarkPlus as any}
+                                        language={match[1]}
+                                        PreTag="div"
+                                        customStyle={{ margin: 0, padding: '20px' }}
+                                        {...props}
+                                    >
+                                        {String(children).replace(/\n$/, '')}
+                                    </SyntaxHighlighter>
+                                </div>
                             ) : (
-                                <code style={{ background: 'var(--code-bg)', color: '#e4e4e7', padding: '2px 6px', borderRadius: 4, fontSize: 13 }} {...props}>
+                                <code style={{ background: 'var(--bg-subtle)', color: 'var(--accent)', padding: '2px 6px', borderRadius: 4, fontSize: '0.9em', fontFamily: 'JetBrains Mono' }} {...props}>
                                     {children}
                                 </code>
                             )
                         },
-                        h1: ({ node, ...props }: any) => <h1 style={{ fontSize: 24, fontWeight: 700, marginTop: 24, marginBottom: 12, color: 'var(--text-primary)' }} {...props} />,
-                        h2: ({ node, ...props }: any) => <h2 style={{ fontSize: 20, fontWeight: 600, marginTop: 20, marginBottom: 10, color: 'var(--text-primary)' }} {...props} />,
-                        h3: ({ node, ...props }: any) => <h3 style={{ fontSize: 17, fontWeight: 500, marginTop: 16, marginBottom: 8, color: 'var(--text-primary)' }} {...props} />,
-                        p: ({ node, ...props }: any) => <p style={{ marginBottom: 14, lineHeight: 1.8, color: 'var(--text-secondary)' }} {...props} />,
-                        ul: ({ node, ...props }: any) => <ul style={{ paddingLeft: 24, marginBottom: 14, color: 'var(--text-secondary)', listStyleType: 'disc' }} {...props} />,
-                        ol: ({ node, ...props }: any) => <ol style={{ paddingLeft: 24, marginBottom: 14, color: 'var(--text-secondary)', listStyleType: 'decimal' }} {...props} />,
-                        li: ({ node, ...props }: any) => <li style={{ marginBottom: 6, lineHeight: 1.7 }} {...props} />,
-                        a: ({ node, ...props }: any) => <a style={{ color: 'var(--accent)', textDecoration: 'underline' }} {...props} />,
-                        strong: ({ node, ...props }: any) => <strong style={{ fontWeight: 600, color: 'var(--text-primary)' }} {...props} />,
-                        em: ({ node, ...props }: any) => <em style={{ fontStyle: 'italic', color: 'var(--text-secondary)' }} {...props} />,
+                        h1: (p) => <h2 style={{ fontSize: 24, fontWeight: 700, marginTop: 40, marginBottom: 16, color: 'var(--text-primary)' }} {...p} />,
+                        h2: (p) => <h3 style={{ fontSize: 20, fontWeight: 700, marginTop: 32, marginBottom: 12, color: 'var(--text-primary)' }} {...p} />,
+                        h3: (p) => <h4 style={{ fontSize: 18, fontWeight: 600, marginTop: 24, marginBottom: 8, color: 'var(--text-primary)' }} {...p} />,
+                        p: (p) => <p style={{ marginBottom: 20 }} {...p} />,
+                        ul: (p) => <ul style={{ paddingLeft: 24, marginBottom: 20, listStyleType: 'circle' }} {...p} />,
+                        li: (p) => <li style={{ marginBottom: 8 }} {...p} />,
+                        blockquote: (p) => <blockquote style={{ borderLeft: '4px solid var(--accent)', paddingLeft: 20, margin: '24px 0', fontStyle: 'italic', color: 'var(--text-tertiary)' }} {...p} />,
                     }}
                 >
-                    {String(branchContent?.content || explainContent || section.content).replace(/\\n/g, '\n')}
+                    {String(explainContent || section.content).replace(/\\n/g, '\n')}
                 </ReactMarkdown>
             </div>
 
-            {/* Term popover */}
-            {termPopover && (
-                <div className="card" style={{
-                    position: 'fixed', left: termPopover.x, top: termPopover.y, width: 240,
-                    zIndex: 200, fontSize: 13, boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
-                }}>
-                    <strong>{termPopover.term}</strong>
-                    <p style={{ marginTop: 4, color: 'var(--text-secondary)' }}>{termPopover.def}</p>
-                    <button className="btn btn-ghost btn-sm" style={{ marginTop: 8 }} onClick={() => setTermPopover(null)}>Got it</button>
-                </div>
-            )}
-
-            {/* Explain differently buttons */}
-            <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
-                <button className="btn btn-ghost btn-sm" onClick={() => handleExplain('simpler')} disabled={explainLoading} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    {explainLoading ? '...' : <><Sparkles size={14} /> Simpler</>}
-                </button>
-                <button className="btn btn-ghost btn-sm" onClick={() => handleExplain('analogy')} disabled={explainLoading} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    {explainLoading ? '...' : <><RefreshCw size={14} /> Analogy</>}
-                </button>
-                <button className="btn btn-ghost btn-sm" onClick={() => handleExplain('realworld')} disabled={explainLoading} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    {explainLoading ? '...' : <><Lightbulb size={14} /> Example</>}
-                </button>
-            </div>
-
-            {/* Code playground */}
-            {(section.code || lesson.exercise?.starter_code) && (
-                <div style={{ marginTop: 24 }}>
-                    <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>Try it yourself</p>
-                    <Editor
-                        height="200px"
-                        language="python"
-                        theme="vs-dark"
-                        value={codeValue}
-                        onChange={v => setCodeValue(v || '')}
-                        options={{ minimap: { enabled: false }, fontSize: 13, fontFamily: 'JetBrains Mono', scrollBeyondLastLine: false }}
-                    />
-                    <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                        <button className="btn btn-primary btn-sm" onClick={runCode} style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Play size={14} /> Run</button>
-                    </div>
-                    {codeOutput && (
-                        <pre style={{
-                            background: '#0F0F10', color: '#4ADE80', borderRadius: 8, padding: 12,
-                            fontFamily: 'JetBrains Mono', fontSize: 13, marginTop: 8, overflowX: 'auto',
-                        }}>{codeOutput}</pre>
-                    )}
-                </div>
-            )}
-
-            {/* Lesson branching */}
-            <div className="card-subtle" style={{ marginTop: 32, padding: 16 }}>
-                <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 10 }}>How did that feel?</p>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    {sectionIndex > 0 && (
-                        <button className="btn btn-ghost btn-sm" onClick={onPrev} style={{ color: 'var(--text-secondary)' }}>Previous</button>
-                    )}
-                    <button className="btn btn-secondary btn-sm" onClick={onNext} style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Check size={14} /> Got it</button>
-                    <button className="btn btn-ghost btn-sm" onClick={() => handleBranch('example')} disabled={branchLoading}>
-                        {branchLoading ? '...' : 'Show another example'}
+            {/* Navigation Buttons */}
+            <div style={{ display: 'flex', gap: 16, marginTop: 48, paddingTop: 32, borderTop: '1px solid var(--border)' }}>
+                {sectionIndex > 0 && (
+                    <button className="btn btn-secondary" style={{ flex: 1, height: 52 }} onClick={onPrev}>
+                        Go Back
                     </button>
-                    <button className="btn btn-ghost btn-sm" style={{ color: 'var(--accent)' }}
-                        onClick={() => handleBranch('rewrite')} disabled={branchLoading}>
-                        I need more help
-                    </button>
-                </div>
-                {branchContent && (
-                    <div className="card-accent animate-fade-in" style={{ marginTop: 12, fontSize: 14 }}>
-                        <p>{branchContent.content || branchContent.explanation || branchContent.example_setup}</p>
-                        {branchContent.code && (
-                            <pre className="code-block" style={{ marginTop: 8 }}>{branchContent.code}</pre>
-                        )}
-                    </div>
                 )}
+                <button className="btn btn-primary" style={{ flex: 2, height: 52, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, fontSize: 16 }} onClick={onNext}>
+                    {isLast ? 'Complete & Start Quiz' : 'Next Step'} 
+                    <ChevronRight size={18} />
+                </button>
             </div>
 
-            {/* Assessment CTA at end of lesson */}
+            {/* Celebration State for Last Section */}
             {isLast && (
                 <div style={{
-                    marginTop: 32, padding: 24, borderRadius: 14, textAlign: 'center',
-                    background: 'linear-gradient(135deg, var(--accent-light), var(--bg-subtle))',
-                    border: '1px solid var(--border)',
+                    marginTop: 48, padding: '40px', borderRadius: '24px', textAlign: 'center',
+                    background: 'linear-gradient(135deg, var(--accent-light) 0%, rgba(255,255,255,0) 100%)',
+                    border: '1px solid var(--accent)',
+                    position: 'relative', overflow: 'hidden'
                 }}>
-                    <p style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>Lesson complete</p>
-                    <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }}>Ready to test your understanding?</p>
-                    <button className="btn btn-primary btn-lg" onClick={() => navigate('/assessment')} style={{ minWidth: 200, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                        Take Assessment <ChevronRight size={16} />
-                    </button>
-                    <FolderPicker lessonId={lesson.lesson_id || ''} />
+                    <Target size={48} color="var(--accent)" style={{ marginBottom: 16, opacity: 0.2 }} />
+                    <h3 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>You're all caught up!</h3>
+                    <p style={{ fontSize: 15, color: 'var(--text-secondary)', marginBottom: 24, maxWidth: 400, margin: '0 auto 24px' }}>
+                        You've finished all the sections for this lesson. Great job! Ready to see what you've learned?
+                    </p>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+                        <button className="btn btn-primary btn-lg" onClick={() => navigate('/assessment')} style={{ padding: '16px 48px', fontSize: 18 }}>
+                            Begin Assessment
+                        </button>
+                        <FolderPicker lessonId={lesson.lesson_id || ''} />
+                    </div>
                 </div>
             )}
-        </div>
-    );
-}
-
-/* ─── Rich Text Renderer (highlights technical terms) ─── */
-function RichText({ text, onTermClick }: { text: string; onTermClick: (e: React.MouseEvent, term: string) => void }) {
-    if (!text) return null;
-    // Simple code block detection
-    const parts = text.split(/(```[\s\S]*?```)/g);
-    return (
-        <>
-            {parts.map((part, i) => {
-                if (part.startsWith('```')) {
-                    const code = part.replace(/```\w*\n?/, '').replace(/```$/, '');
-                    return <pre key={i} className="code-block" style={{ margin: '16px 0' }}>{code}</pre>;
-                }
-                return <span key={i} dangerouslySetInnerHTML={{ __html: highlightTerms(part) }}
-                    onClick={e => {
-                        const t = (e.target as HTMLElement).dataset.term;
-                        if (t) onTermClick(e, t);
-                    }} />;
-            })}
-        </>
-    );
-}
-
-function highlightTerms(text: string) {
-    // Highlight CamelCase or code-like words
-    return text.replace(/\b([A-Z][a-z]+[A-Z]\w+|\w+\(\)|\w+_\w+)\b/g,
-        '<span data-term="$1" style="border-bottom:1.5px dotted var(--accent);cursor:pointer;color:var(--text-primary)">$1</span>');
-}
-
-/* ─── Sidebar Item ─── */
-function SidebarItem({ label, status, onClick }: { label: string; status: 'done' | 'active' | 'pending'; onClick: () => void }) {
-    return (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, cursor: status !== 'pending' ? 'pointer' : 'default' }} onClick={onClick}>
-            <div style={{
-                width: 18, height: 18, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: status === 'done' ? 'var(--accent)' : 'var(--bg-base)',
-                border: `${status === 'pending' ? 1 : 2}px solid ${status === 'done' ? 'var(--accent)' : status === 'active' ? 'var(--accent)' : 'var(--border-strong)'}`,
-            }}>
-                {status === 'done' && <Check color="#fff" size={12} strokeWidth={3} />}
-                {status === 'active' && <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent)' }} />}
-            </div>
-            <span style={{
-                fontSize: 13, fontWeight: status === 'active' ? 500 : 400,
-                color: status === 'done' ? 'var(--text-secondary)' : status === 'active' ? 'var(--text-primary)' : 'var(--text-tertiary)',
-                textDecoration: status === 'done' ? 'line-through' : 'none',
-            }}>{label}</span>
         </div>
     );
 }
@@ -443,37 +346,104 @@ function DiscussionTextTab({ lessonContent }: { lessonContent: string }) {
 
     return (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {messages.length === 0 && (
+                    <div style={{ textAlign: 'center', marginTop: 40, padding: 20 }}>
+                        <Lightbulb size={32} color="var(--accent)" style={{ opacity: 0.3, marginBottom: 12 }} />
+                        <p style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>Ask me anything about this lesson! I'm here to help you understand better.</p>
+                    </div>
+                )}
                 {messages.map((m, i) => (
                     <div key={i} style={{
-                        alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '85%',
-                        background: m.role === 'user' ? 'var(--accent-light)' : 'var(--bg-subtle)',
-                        padding: '8px 12px', borderRadius: 10, fontSize: 13,
+                        alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '90%',
+                        background: m.role === 'user' ? 'var(--accent)' : 'var(--bg-subtle)',
+                        color: m.role === 'user' ? '#fff' : 'var(--text-primary)',
+                        padding: '10px 14px', borderRadius: m.role === 'user' ? '14px 14px 2px 14px' : '14px 14px 14px 2px', 
+                        fontSize: 13, lineHeight: 1.5,
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
                     }}>{m.content}</div>
                 ))}
-                {loading && <div style={{ color: 'var(--text-tertiary)', fontSize: 13 }}>Thinking...</div>}
+                {loading && <div style={{ color: 'var(--text-tertiary)', fontSize: 12, paddingLeft: 4 }}>AI is thinking...</div>}
             </div>
-            <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8 }}>
-                <input className="input" style={{ height: 36, fontSize: 13 }} placeholder="Ask anything..." value={input}
-                    onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && send()} />
-                <button className="btn btn-primary btn-sm" onClick={send} disabled={loading} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 10px' }}><Send size={14} /></button>
+            <div style={{ padding: '16px', borderTop: '1px solid var(--border)', background: 'var(--bg-subtle)' }}>
+                <div style={{ display: 'flex', gap: 8 }}>
+                    <input 
+                        className="input" 
+                        style={{ height: 40, fontSize: 14, borderRadius: '10px' }} 
+                        placeholder="Type your question..." 
+                        value={input}
+                        onChange={e => setInput(e.target.value)} 
+                        onKeyDown={e => e.key === 'Enter' && send()} 
+                    />
+                    <button className="btn btn-primary" onClick={send} disabled={loading} style={{ width: 40, height: 40, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Send size={18} />
+                    </button>
+                </div>
             </div>
         </div>
     );
 }
 
-
 /* ─── Build sections from lesson ─── */
-function buildSections(lesson: LessonContent, framework: string) {
-    const labels = FRAMEWORK_LABELS[framework] || FRAMEWORK_LABELS.gagne;
-    const contentMap = [
-        { label: labels[0], content: lesson.hook || 'Introduction' },
-        { label: labels[1], content: lesson.objectives?.join('\n') || '' },
-        { label: labels[2], content: lesson.prior_knowledge_check || '' },
-        { label: labels[3], content: lesson.explanation || '', code: lesson.worked_example?.code },
-        { label: labels[4], content: lesson.worked_example?.walkthrough || '' },
-        { label: labels[5], content: lesson.exercise?.instructions || '' },
-        { label: labels[6] || 'Feedback', content: lesson.assessment?.question || '' },
-    ];
-    return contentMap.filter(s => s.content);
+function buildSections(lesson: LessonContent, _framework: string) {
+    const title = lesson.title || 'This Topic';
+    const sections: { label: string; content: string; code?: string }[] = [];
+
+    // Section 1: Introduction — hook + objectives combined
+    const introLines: string[] = [];
+    if (lesson.hook) introLines.push(lesson.hook);
+    if (lesson.objectives?.length) {
+        introLines.push('\n\n## What you will learn');
+        lesson.objectives.forEach((o: string) => introLines.push(`- ${o}`));
+    }
+    if (lesson.prior_knowledge_check) {
+        introLines.push('\n\n> **Before we start:** ' + lesson.prior_knowledge_check);
+    }
+    if (introLines.length) {
+        sections.push({ label: 'Introduction', content: introLines.join('\n') });
+    }
+
+    // Section 2: Core Concepts — the main explanation
+    if (lesson.explanation) {
+        sections.push({ label: 'Concept Deep Dive', content: lesson.explanation });
+    }
+
+    // Section 3: Worked Example — walkthrough + code
+    const exLines: string[] = [];
+    if (lesson.worked_example?.setup) exLines.push(`${lesson.worked_example.setup}\n`);
+    if (lesson.worked_example?.code) exLines.push('\n```python\n' + lesson.worked_example.code + '\n```\n');
+    if (lesson.worked_example?.walkthrough) exLines.push(`${lesson.worked_example.walkthrough}`);
+    if (exLines.length) {
+        sections.push({ label: 'Practical Example', content: exLines.join('\n'), code: lesson.worked_example?.code });
+    }
+
+    // Section 4: Practice — exercise
+    if (lesson.exercise?.instructions) {
+        sections.push({
+            label: 'Interactive Practice',
+            content: lesson.exercise.instructions,
+            code: lesson.exercise.starter_code,
+        });
+    }
+
+    // Section 5: Summary & Key Takeaways
+    const sumLines: string[] = [];
+    if (lesson.summary) sumLines.push(lesson.summary);
+    if (lesson.key_takeaways?.length) {
+        sumLines.push('\n\n## Key Takeaways');
+        lesson.key_takeaways.forEach((t: string) => sumLines.push(`- ${t}`));
+    }
+    if (lesson.assessment?.question) {
+        sumLines.push('\n\n### Concept Check\n' + lesson.assessment.question);
+    }
+    if (sumLines.length) {
+        sections.push({ label: 'Review & Wrap-up', content: sumLines.join('\n') });
+    }
+
+    // Fallback
+    if (sections.length === 0) {
+        sections.push({ label: 'Lesson Content', content: lesson.explanation || lesson.hook || 'Content is being prepared...' });
+    }
+
+    return sections;
 }

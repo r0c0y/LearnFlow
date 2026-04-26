@@ -8,8 +8,9 @@ from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
-
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "../.env"))
+# Only load .env if essential variables are missing (likely local)
+if not os.getenv("GROQ_API_KEY"):
+    load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "../.env"))
 
 from pipeline import run_pipeline_with_events
 from groq_client import call_llm, HEAVY_MODEL, FAST_MODEL

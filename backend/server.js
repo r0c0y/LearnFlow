@@ -20,7 +20,10 @@ import agentProxyRouter from "./routes/agentProxy.js";
 import statsRouter from "./routes/stats.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: path.join(__dirname, "../.env") });
+// Only load .env if essential variables are missing (likely local)
+if (!process.env.TURSO_DATABASE_URL) {
+    dotenv.config({ path: path.join(__dirname, "../.env") });
+}
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -35,7 +38,7 @@ app.use("/api/generate", generateRouter);
 app.use("/api/lesson", lessonRouter);
 app.use("/api/assess", assessRouter);
 app.use("/api/chat", chatRouter);
-app.use("/api/prior-check", chatRouter);  // prior-check uses same router
+app.use("/api/prior-check", chatRouter);
 app.use("/api/advisor", agentProxyRouter);
 app.use("/api/classify", agentProxyRouter);
 app.use("/api/explain", explainRouter);
@@ -49,12 +52,16 @@ app.use("/api/stats", statsRouter);
 
 app.get("/health", (_req, res) => res.json({ status: "ok", service: "learnflow-backend" }));
 
-// Init DB and start server
-initSchema().then(() => {
-    app.listen(PORT, () => {
-        console.log(`🚀 LearnFlow backend running on http://localhost:${PORT}`);
+// Export for Vercel
+export { app, initSchema };
+
+// Start the server if NOT running on Vercel (e.g., running on Render or locally)
+if (!process.env.VERCEL) {
+    initSchema().then(() => {
+        app.listen(PORT, () => {
+            console.log(`🚀 LearnFlow backend running on port ${PORT}`);
+        });
+    }).catch((err) => {
+        console.error("❌ Failed to initialize database:", err.message);
     });
-}).catch((err) => {
-    console.error("❌ Failed to initialize database:", err.message);
-    process.exit(1);
-});
+}
