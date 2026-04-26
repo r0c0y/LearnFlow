@@ -26,9 +26,14 @@ router.post("/", async (req, res) => {
             { responseType: "stream", timeout: 300000 }
         );
 
+        // Heartbeat to keep connection alive during long AI tasks
+        const heartbeat = setInterval(() => {
+            res.write(': keep-alive\n\n');
+            if (res.flush) res.flush();
+        }, 15000);
+
         agentRes.data.on("data", (chunk) => {
             const raw = chunk.toString("utf8");
-            // Forward each SSE line as-is
             raw.split("\n").forEach((line) => {
                 if (line.startsWith("data:")) {
                     res.write(line + "\n\n");
@@ -38,12 +43,14 @@ router.post("/", async (req, res) => {
         });
 
         agentRes.data.on("end", () => {
+            clearInterval(heartbeat);
             res.write("data: {\"stage\":\"done\"}\n\n");
             if (res.flush) res.flush();
             res.end();
         });
 
         agentRes.data.on("error", (err) => {
+            clearInterval(heartbeat);
             send({ stage: "error", message: err.message });
             res.end();
         });
