@@ -37,9 +37,9 @@ Return JSON exactly matching this format for each lesson:
 }
 
 CRITICAL RULES:
-1. The 'explanation' field MUST be at least 800 words with markdown headings, bullet points, and examples. Dive deep into the theory.
-2. The 'worked_example.walkthrough' field MUST be at least 300 words, breaking down the example thoroughly.
-3. The 'exercise.instructions' MUST be detailed (150+ words) providing rich context for the practice.
+1. The 'explanation' field should be around 300-400 words with markdown headings and examples.
+2. The 'worked_example.walkthrough' should be clear and concise (around 150 words).
+3. The 'exercise.instructions' should be specific and actionable.
 4. Include relevant reference links (Wikipedia, MDN, official docs, etc.) in the explanation.
 5. Use markdown formatting: ## headings, **bold** for key terms, `code` for technical terms, bullet lists.
 6. Every concept must have at least one concrete example.
@@ -87,9 +87,9 @@ Source material to teach from:
 {chunk_text[:8000]}
 
 IMPORTANT REQUIREMENTS:
-1. Write the 'explanation' as a DETAILED, comprehensive article (minimum 800 words) using markdown with ## headings, **bold** terms, bullet lists, and code blocks. Go deep into the nuances.
-2. Ensure the 'worked_example.walkthrough' is a highly detailed, step-by-step tutorial (minimum 300 words) explaining exactly how the example works and why.
-3. Provide rich 'exercise.instructions' (minimum 150 words) that set up a realistic scenario for the student to practice.
+1. Write the 'explanation' as a clear, detailed article (around 350 words) using markdown.
+2. Ensure the 'worked_example.walkthrough' is a concise, step-by-step tutorial (around 150 words).
+3. Provide specific 'exercise.instructions' that set up a scenario for the student.
 4. Include real reference links to documentation, Wikipedia, or learning resources (use actual URLs).
 5. Break down complex ideas into digestible pieces with analogies.
 6. Include at least 2-3 concrete examples within the explanation.

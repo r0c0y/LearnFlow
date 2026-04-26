@@ -16,6 +16,8 @@ import { authFetch } from '../utils/api';
 import { ChevronRight, Play, GripVertical } from 'lucide-react';
 import FolderPicker from '../components/FolderPicker';
 
+type AssessmentType = 'mcq' | 'written' | 'coding' | 'fill_blank' | 'drag_drop' | 'math';
+
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 const API = API_BASE.replace(/\/$/, '').replace(/\/api$/, '');
 
@@ -747,17 +749,24 @@ function ScoreReport({ report, questions, hintDeductions, lessonId, onRetake }: 
                 </div>
             </div>
 
-            {/* Folder Picker */}
-            <FolderPicker lessonId={lessonId} />
-
-            {/* Actions */}
+            {/* Main Actions */}
             <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
                 <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => navigate('/lesson')}>Re-study sections</button>
                 <button className="btn btn-primary" style={{ flex: 1 }} onClick={onRetake}>Retake assessment</button>
             </div>
-            <button className="btn btn-ghost" style={{ width: '100%', marginTop: 8 }} onClick={() => navigate('/library')}>
-                View in Library
-            </button>
+
+            {/* Subtle Folder Organization */}
+            <div style={{ marginTop: 32, borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <span style={{ fontSize: 13, color: 'var(--text-tertiary)', fontWeight: 500 }}>Organize this lesson?</span>
+                    <button className="btn btn-ghost btn-sm" onClick={() => navigate('/library')}>
+                        View in Library
+                    </button>
+                </div>
+                <div style={{ background: 'rgba(255,255,255,0.015)', borderRadius: 12, padding: '4px 12px', border: '1px solid var(--border)' }}>
+                    <FolderPicker lessonId={lessonId} />
+                </div>
+            </div>
         </div>
     );
 }
