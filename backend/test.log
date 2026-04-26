@@ -1,0 +1,4 @@
+◇ injected env (9) from ../.env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+✅ Connecting to Turso: libsql://learnflow-vikashk.aws-ap-south-...
+✅ Database schema initialized
+🚀 LearnFlow backend running on http://localhost:3001

@@ -7,8 +7,9 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { useLessonStore } from '../store/lessonStore';
 import { useConfusionDetector } from '../hooks/useConfusionDetector';
-import { useVoiceRecorder } from '../hooks/useVoiceRecorder';
 import type { LessonContent } from '../store/lessonStore';
+import { ChevronRight, Lightbulb, Sparkles, RefreshCw, Play, Check, Send, MessageSquare, X } from 'lucide-react';
+import FolderPicker from '../components/FolderPicker';
 
 const API = import.meta.env.VITE_API_URL || '';
 
@@ -22,7 +23,6 @@ export default function LessonPage() {
     const navigate = useNavigate();
     const { lessons, framework, currentLessonIndex, setCurrentLessonIndex } = useLessonStore();
     const [panelOpen, setPanelOpen] = useState(false);
-    const [panelTab, setPanelTab] = useState<'text' | 'voice'>('text');
     const [sectionIdx, setSectionIdx] = useState(0);
     const [startTime] = useState(Date.now());
     const [elapsedMin, setElapsedMin] = useState(0);
@@ -34,7 +34,7 @@ export default function LessonPage() {
 
     if (!lessons.length) return (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '50vh', color: 'var(--text-secondary)' }}>
-            No lesson loaded yet. <a href="/" style={{ color: 'var(--accent)', marginLeft: 6 }}>Start learning →</a>
+            No lesson loaded yet. <a href="/" style={{ color: 'var(--accent)', marginLeft: 6, display: 'inline-flex', alignItems: 'center', gap: 4 }}>Start learning <ChevronRight size={14} /></a>
         </div>
     );
 
@@ -81,6 +81,7 @@ export default function LessonPage() {
                                 setSectionIdx(i => Math.min(i + 1, sections.length - 1));
                             }
                         }}
+                        onPrev={() => setSectionIdx(i => Math.max(i - 1, 0))}
                     />
                 )}
             </main>
@@ -92,11 +93,11 @@ export default function LessonPage() {
                     position: 'fixed', right: panelOpen ? 308 : 16, top: '50%', transform: 'translateY(-50%)',
                     width: 40, height: 40, borderRadius: '50%', background: 'var(--bg-base)',
                     border: '1px solid var(--border)', cursor: 'pointer', display: 'flex', alignItems: 'center',
-                    justifyContent: 'center', color: 'var(--text-secondary)', zIndex: 50, transition: 'right 250ms ease',
+                justifyContent: 'center', color: 'var(--text-secondary)', zIndex: 50, transition: 'right 250ms ease',
                 }}
                 aria-label="Open discussion panel"
             >
-                💬
+                <MessageSquare size={20} />
             </button>
 
             {panelOpen && (
@@ -108,19 +109,9 @@ export default function LessonPage() {
                 }}>
                     <div style={{ padding: '16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <span className="text-h3">Discussion</span>
-                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                            {(['text', 'voice'] as const).map(t => (
-                                <button key={t} className={`pill-tab${panelTab === t ? ' active' : ''}`} style={{ flex: 'initial', padding: '4px 10px', fontSize: 12 }}
-                                    onClick={() => setPanelTab(t)}>{t === 'text' ? 'Text' : 'Voice'}</button>
-                            ))}
-                            <button className="btn-icon" onClick={() => setPanelOpen(false)}>×</button>
-                        </div>
+                        <button className="btn-icon" onClick={() => setPanelOpen(false)}><X size={18} /></button>
                     </div>
-                    {panelTab === 'text' ? (
-                        <DiscussionTextTab lessonContent={lesson.explanation + ' ' + lesson.hook} />
-                    ) : (
-                        <DiscussionVoiceTab lessonContent={lesson.explanation} />
-                    )}
+                    <DiscussionTextTab lessonContent={lesson.explanation + ' ' + lesson.hook} />
                 </aside>
             )}
         </div>
@@ -128,7 +119,7 @@ export default function LessonPage() {
 }
 
 /* ─── Lesson Section ─── */
-function LessonSection({ section, lesson, sectionIndex, total, isLast, onNext }: any) {
+function LessonSection({ section, lesson, sectionIndex, total, isLast, onNext, onPrev }: any) {
     const navigate = useNavigate();
     const { recordExplainClick, triggered, dismiss } = useConfusionDetector(`section_${sectionIndex}`);
     const [explainContent, setExplainContent] = useState<string | null>(null);
@@ -240,7 +231,7 @@ _stdout_capture.getvalue()
                     padding: '12px 16px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10,
                     animation: 'slideDown 200ms ease',
                 }}>
-                    <span>💡</span>
+                    <Lightbulb color="var(--warning)" size={18} />
                     <span style={{ flex: 1, fontSize: 13 }}>Spending a while here? Want a different explanation?</span>
                     <button className="btn btn-secondary btn-sm" onClick={() => { handleBranch('rewrite'); dismiss(); }}>Try different approach</button>
                     <button className="btn btn-ghost btn-sm" onClick={dismiss}>No thanks</button>
@@ -299,11 +290,15 @@ _stdout_capture.getvalue()
 
             {/* Explain differently buttons */}
             <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
-                {[{ style: 'simpler', label: '✦ Simpler' }, { style: 'analogy', label: '🔄 Analogy' }, { style: 'realworld', label: '💡 Example' }].map(b => (
-                    <button key={b.style} className="btn btn-ghost btn-sm" onClick={() => handleExplain(b.style)} disabled={explainLoading}>
-                        {explainLoading ? '...' : b.label}
-                    </button>
-                ))}
+                <button className="btn btn-ghost btn-sm" onClick={() => handleExplain('simpler')} disabled={explainLoading} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {explainLoading ? '...' : <><Sparkles size={14} /> Simpler</>}
+                </button>
+                <button className="btn btn-ghost btn-sm" onClick={() => handleExplain('analogy')} disabled={explainLoading} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {explainLoading ? '...' : <><RefreshCw size={14} /> Analogy</>}
+                </button>
+                <button className="btn btn-ghost btn-sm" onClick={() => handleExplain('realworld')} disabled={explainLoading} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {explainLoading ? '...' : <><Lightbulb size={14} /> Example</>}
+                </button>
             </div>
 
             {/* Code playground */}
@@ -319,7 +314,7 @@ _stdout_capture.getvalue()
                         options={{ minimap: { enabled: false }, fontSize: 13, fontFamily: 'JetBrains Mono', scrollBeyondLastLine: false }}
                     />
                     <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                        <button className="btn btn-primary btn-sm" onClick={runCode}>▶ Run</button>
+                        <button className="btn btn-primary btn-sm" onClick={runCode} style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Play size={14} /> Run</button>
                     </div>
                     {codeOutput && (
                         <pre style={{
@@ -334,7 +329,10 @@ _stdout_capture.getvalue()
             <div className="card-subtle" style={{ marginTop: 32, padding: 16 }}>
                 <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 10 }}>How did that feel?</p>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    <button className="btn btn-secondary btn-sm" onClick={onNext}>✓ Got it</button>
+                    {sectionIndex > 0 && (
+                        <button className="btn btn-ghost btn-sm" onClick={onPrev} style={{ color: 'var(--text-secondary)' }}>Previous</button>
+                    )}
+                    <button className="btn btn-secondary btn-sm" onClick={onNext} style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Check size={14} /> Got it</button>
                     <button className="btn btn-ghost btn-sm" onClick={() => handleBranch('example')} disabled={branchLoading}>
                         {branchLoading ? '...' : 'Show another example'}
                     </button>
@@ -362,9 +360,10 @@ _stdout_capture.getvalue()
                 }}>
                     <p style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>Lesson complete</p>
                     <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }}>Ready to test your understanding?</p>
-                    <button className="btn btn-primary btn-lg" onClick={() => navigate('/assessment')} style={{ minWidth: 200 }}>
-                        Take Assessment →
+                    <button className="btn btn-primary btn-lg" onClick={() => navigate('/assessment')} style={{ minWidth: 200, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                        Take Assessment <ChevronRight size={16} />
                     </button>
+                    <FolderPicker lessonId={lesson.lesson_id || ''} />
                 </div>
             )}
         </div>
@@ -408,7 +407,7 @@ function SidebarItem({ label, status, onClick }: { label: string; status: 'done'
                 background: status === 'done' ? 'var(--accent)' : 'var(--bg-base)',
                 border: `${status === 'pending' ? 1 : 2}px solid ${status === 'done' ? 'var(--accent)' : status === 'active' ? 'var(--accent)' : 'var(--border-strong)'}`,
             }}>
-                {status === 'done' && <span style={{ color: '#fff', fontSize: 9 }}>✓</span>}
+                {status === 'done' && <Check color="#fff" size={12} strokeWidth={3} />}
                 {status === 'active' && <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent)' }} />}
             </div>
             <span style={{
@@ -457,69 +456,12 @@ function DiscussionTextTab({ lessonContent }: { lessonContent: string }) {
             <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8 }}>
                 <input className="input" style={{ height: 36, fontSize: 13 }} placeholder="Ask anything..." value={input}
                     onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && send()} />
-                <button className="btn btn-primary btn-sm" onClick={send} disabled={loading}>→</button>
+                <button className="btn btn-primary btn-sm" onClick={send} disabled={loading} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 10px' }}><Send size={14} /></button>
             </div>
         </div>
     );
 }
 
-/* ─── Discussion Voice Tab ─── */
-function DiscussionVoiceTab({ lessonContent }: { lessonContent: string }) {
-    const { isRecording, audioBlob, toggle } = useVoiceRecorder();
-    const [status, setStatus] = useState('Tap to speak');
-    const [lastResponse, setLastResponse] = useState('');
-
-    useEffect(() => {
-        if (!audioBlob) return;
-        setStatus('Processing...');
-        const formData = new FormData();
-        formData.append('audio', audioBlob, 'recording.webm');
-        fetch(`${API}/api/transcribe`, { method: 'POST', body: formData })
-            .then(r => r.json())
-            .then(async d => {
-                const chatRes = await fetch(`${API}/api/chat`, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: d.text, lesson_context: lessonContent }),
-                });
-                const chatData = await chatRes.json();
-                setLastResponse(chatData.reply);
-                setStatus('Tap to speak');
-                // TTS
-                const utter = new SpeechSynthesisUtterance(chatData.reply);
-                window.speechSynthesis.speak(utter);
-            })
-            .catch(() => setStatus('Error — try again'));
-    }, [audioBlob]);
-
-    useEffect(() => { if (isRecording) setStatus('Listening...'); }, [isRecording]);
-
-    return (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16 }}>
-            <button
-                onClick={toggle}
-                className={isRecording ? 'animate-pulse-ring' : ''}
-                style={{
-                    width: 64, height: 64, borderRadius: '50%', cursor: 'pointer',
-                    background: isRecording ? 'var(--accent-light)' : 'var(--bg-muted)',
-                    border: `2px solid ${isRecording ? 'var(--accent)' : 'var(--border-strong)'}`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24,
-                    transition: 'all 150ms ease',
-                }}
-                aria-label="Toggle voice recording"
-            >🎙</button>
-            <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{status}</p>
-            {lastResponse && (
-                <div className="card-subtle" style={{ fontSize: 13, lineHeight: 1.6, textAlign: 'left', width: '100%' }}>
-                    <p>{lastResponse}</p>
-                    <button className="btn btn-ghost btn-sm" style={{ marginTop: 8 }}
-                        onClick={() => { const u = new SpeechSynthesisUtterance(lastResponse); window.speechSynthesis.speak(u); }}>
-                        🔊 Play again
-                    </button>
-                </div>
-            )}
-        </div>
-    );
-}
 
 /* ─── Build sections from lesson ─── */
 function buildSections(lesson: LessonContent, framework: string) {

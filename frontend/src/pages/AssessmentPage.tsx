@@ -3,23 +3,27 @@ import { useNavigate } from 'react-router-dom';
 import Editor from '@monaco-editor/react';
 import { InlineMath, BlockMath } from 'react-katex';
 import 'katex/dist/katex.min.css';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { DndContext, closestCenter } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, arrayMove, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useLessonStore } from '../store/lessonStore';
 import { useAssessmentStore } from '../store/assessmentStore';
-import { useVoiceRecorder } from '../hooks/useVoiceRecorder';
 import { useSpacedRepetition } from '../hooks/useSpacedRepetition';
 import { useAuthStore } from '../store/authStore';
 import { authFetch } from '../utils/api';
+import { ChevronRight, Play, GripVertical } from 'lucide-react';
+import FolderPicker from '../components/FolderPicker';
 
 const API = import.meta.env.VITE_API_URL || '';
 
 export default function AssessmentPage() {
     const { lessons, lessonReady } = useLessonStore();
     const { assessmentType, setAssessmentType, questions, setQuestions, submitted, setSubmitted,
-        currentIndex, nextQuestion, answers, setAnswer, confidence, setConfidence,
-        scoreReport, setScoreReport, addHint, hintDeductions, replaceQuestion } = useAssessmentStore();
+        currentIndex, nextQuestion, prevQuestion, answers, setAnswer, confidence, setConfidence,
+        scoreReport, setScoreReport, addHint, hintDeductions, replaceQuestion, reset,
+        retakeKey, bumpRetakeKey, viewingReport, setViewingReport } = useAssessmentStore();
     const [loading, setLoading] = useState(true);
     const [hintText, setHintText] = useState('');
     const [hintLoading, setHintLoading] = useState(false);
@@ -31,6 +35,7 @@ export default function AssessmentPage() {
 
     useEffect(() => {
         if (!lesson) return;
+        setLoading(true);
         (async () => {
             // Classify topic and choose a safe fallback type
             const clsRes = await fetch(`${API}/api/classify/topic`, {
@@ -43,7 +48,7 @@ export default function AssessmentPage() {
 
             // Build a richer question set with fallbacks for missing content
             const baseQuestions = lessons.flatMap((l, i) => {
-                const questionText = l.assessment?.question || l.title ? `What is the main idea of "${l.title}"?` : `Summarize the primary concept from this lesson section.`;
+                const questionText = l.assessment?.question || (l.title ? `Summarize the primary concept of ${l.title}.` : `Summarize the primary concept from this lesson section.`);
                 const questionType = (l.assessment?.type as AssessmentType) || defaultType;
                 const hasOptions = Array.isArray(l.assessment?.options) && l.assessment.options.length > 0;
 
@@ -94,17 +99,49 @@ export default function AssessmentPage() {
                 });
             }
 
+            // On retakes (retakeKey > 0), ask AI for fresh questions
+            if (retakeKey > 0) {
+                try {
+                    const freshRes = await fetch(`${API}/api/assess/next`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            current_concept: lesson.title || 'General review',
+                            difficulty: 'medium',
+                            lesson_context: lesson.explanation?.slice(0, 1000) || JSON.stringify(lesson).slice(0, 1000),
+                        }),
+                    });
+                    const freshData = await freshRes.json();
+                    if (freshData.question) {
+                        // Replace first question with AI-generated one
+                        fullQuestions[0] = {
+                            ...fullQuestions[0],
+                            question: freshData.question,
+                            options: freshData.options || [],
+                            correct_answer: freshData.correct_answer || '',
+                            type: (freshData.options?.length > 0 ? 'mcq' : 'written') as AssessmentType,
+                        };
+                    }
+                } catch (_) {}
+                // Shuffle question order for variety
+                for (let i = fullQuestions.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [fullQuestions[i], fullQuestions[j]] = [fullQuestions[j], fullQuestions[i]];
+                }
+                // Re-index
+                fullQuestions.forEach((q, i) => q.index = i);
+            }
+
             setQuestions(fullQuestions);
             setLoading(false);
         })();
-    }, [lesson]);
+    }, [lesson, retakeKey]);
 
     const { token } = useAuthStore();
 
     async function saveLessonResult(score: number) {
         if (!token || !lesson) return;
         try {
-            await authFetch(`${API}/api/save`, {
+            await authFetch(`${API}/api/library/save`, {
                 method: 'POST',
                 body: JSON.stringify({
                     lesson: {
@@ -113,7 +150,7 @@ export default function AssessmentPage() {
                         subdomain: null,
                         content_json: lesson,
                         blueprint_json: null,
-                        assessment_json: lesson.assessment || null,
+                        assessment_json: questions,
                         score,
                         date_assessed: new Date().toISOString(),
                         iterations_needed: 0,
@@ -160,7 +197,24 @@ export default function AssessmentPage() {
             setScoreReport({ overall_score: 0, per_question: [], weak_areas: [], summary: data.error || 'Assessment scoring failed — please retry.' });
         } else {
             setScoreReport(data);
-            await saveLessonResult(Number(data.overall_score || 0));
+            const finalScore = Number(data.overall_score || 0);
+            // Save lesson result
+            await saveLessonResult(finalScore);
+            // Save assessment attempt to assessments table
+            try {
+                await authFetch(`${API}/api/library/assessment`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        lesson_id: lesson.lesson_id,
+                        questions,
+                        answers,
+                        score_report: data,
+                        score: finalScore,
+                    }),
+                });
+            } catch (e) {
+                console.warn('Failed to save assessment attempt:', e);
+            }
             await scheduleReview(lesson.lesson_id, data.concept_scores || {});
         }
         setSubmitted(true);
@@ -197,7 +251,98 @@ export default function AssessmentPage() {
         </div>
     );
 
-    if (submitted && scoreReport) return <ScoreReport report={scoreReport} questions={questions} hintDeductions={hintDeductions} />;
+    function handleRetake() {
+        setViewingReport(null);
+        reset();
+        bumpRetakeKey();
+    }
+
+    // Show saved assessment report if viewing from Library
+    if (viewingReport) {
+        const savedReport = viewingReport.score_report_json || {};
+        const savedQuestions = viewingReport.questions_json || [];
+        const savedAnswers = viewingReport.answers_json || {};
+        const savedScore = viewingReport.score ?? 0;
+        const scoreBadge = savedScore >= 70 ? 'badge-success' : savedScore >= 50 ? 'badge-warning' : 'badge-error';
+
+        return (
+            <div style={{ maxWidth: 700, margin: '48px auto', padding: '0 24px' }}>
+                {/* Header */}
+                <div style={{ textAlign: 'center', marginBottom: 32 }}>
+                    <div style={{
+                        width: 72, height: 72, borderRadius: '50%', margin: '0 auto 16px',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        background: savedScore >= 70 ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
+                        border: `2px solid ${savedScore >= 70 ? '#22c55e' : '#ef4444'}`,
+                    }}>
+                        <span style={{ fontSize: 28, fontWeight: 700, color: savedScore >= 70 ? '#22c55e' : '#ef4444' }}>
+                            {savedScore}%
+                        </span>
+                    </div>
+                    <h2 className="text-h2">Assessment Report</h2>
+                    <p style={{ color: 'var(--text-tertiary)', fontSize: 13 }}>
+                        {viewingReport.date_created?.slice(0, 10)} • {savedQuestions.length} questions
+                    </p>
+                </div>
+
+                {/* Questions & Answers */}
+                {savedQuestions.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24 }}>
+                        {savedQuestions.map((q: any, i: number) => {
+                            const pq = savedReport.per_question?.[i];
+                            const userAnswer = savedAnswers[i] || savedAnswers[String(i)] || '—';
+                            const qScore = pq?.score ?? '—';
+                            const qBadge = typeof qScore === 'number' ? (qScore >= 70 ? 'badge-success' : qScore >= 50 ? 'badge-warning' : 'badge-error') : 'badge-muted';
+
+                            return (
+                                <div key={i} style={{
+                                    borderBottom: '1px solid var(--border)', paddingBottom: 12,
+                                }}>
+                                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 6 }}>
+                                        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', minWidth: 24 }}>{i + 1}.</span>
+                                        <div style={{ flex: 1 }}>
+                                            <p style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)', margin: 0 }}>
+                                                {q.question}
+                                            </p>
+                                            <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '4px 0 0' }}>
+                                                Your answer: <span style={{ color: 'var(--text-primary)' }}>{userAnswer}</span>
+                                            </p>
+                                            {pq?.feedback && (
+                                                <p style={{ fontSize: 12, color: 'var(--text-tertiary)', margin: '4px 0 0', fontStyle: 'italic' }}>
+                                                    {pq.feedback}
+                                                </p>
+                                            )}
+                                        </div>
+                                        <span className={`badge ${qBadge}`} style={{ fontSize: 11 }}>{qScore}{typeof qScore === 'number' ? '%' : ''}</span>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+
+                {/* Summary */}
+                {savedReport.summary && (
+                    <div style={{ padding: 16, background: 'var(--bg-subtle)', borderRadius: 10, border: '1px solid var(--border)', marginBottom: 24 }}>
+                        <p style={{ fontSize: 14, fontWeight: 600, marginBottom: 6, color: 'var(--text-primary)' }}>Summary</p>
+                        <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>{savedReport.summary}</p>
+                    </div>
+                )}
+
+                {/* Actions */}
+                <div style={{ display: 'flex', gap: 12 }}>
+                    <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => { setViewingReport(null); navigate('/library'); }}>
+                        Back to Library
+                    </button>
+                    <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleRetake}>
+                        New Assessment
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    if (submitted && scoreReport) return <ScoreReport report={scoreReport} questions={questions} hintDeductions={hintDeductions} lessonId={lesson?.lesson_id || ''} onRetake={handleRetake} />;
 
     const q = questions[currentIndex];
     if (!q) return null;
@@ -219,7 +364,13 @@ export default function AssessmentPage() {
             {/* Question card */}
             <div className="card" style={{ marginBottom: 16 }}>
                 <span className="badge badge-muted" style={{ marginBottom: 8, display: 'inline-block' }}>Q{currentIndex + 1}</span>
-                <p style={{ fontSize: 16, fontWeight: 500, lineHeight: 1.6 }}>{q.question}</p>
+                {questionType === 'fill_blank' ? (
+                    <FillBlankInterface question={q} answers={answers} currentIndex={currentIndex} onAnswer={setAnswer} />
+                ) : (
+                    <div style={{ fontSize: 16, fontWeight: 500, lineHeight: 1.6, margin: 0 }} className="markdown-body">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{q.question}</ReactMarkdown>
+                    </div>
+                )}
             </div>
 
             {/* Interface by type */}
@@ -233,13 +384,10 @@ export default function AssessmentPage() {
                 />
             )}
             {questionType === 'written' && (
-                <WritingInterface value={answers[currentIndex] || ''} onChange={(v: string) => setAnswer(currentIndex, v)} />
+                <WrittenInterface value={answers[currentIndex] || ''} onChange={(v: string) => setAnswer(currentIndex, v)} />
             )}
             {questionType === 'coding' && (
                 <CodingInterface question={q} answer={answers[currentIndex] || q.starter_code || ''} onChange={(v: string) => setAnswer(currentIndex, v || '')} />
-            )}
-            {questionType === 'fill_blank' && (
-                <FillBlankInterface question={q} answers={answers} currentIndex={currentIndex} onAnswer={setAnswer} />
             )}
             {questionType === 'drag_drop' && (
                 <DragDropInterface question={q} onAnswer={(v: string) => setAnswer(currentIndex, v)} />
@@ -250,9 +398,14 @@ export default function AssessmentPage() {
 
             {/* Nav buttons */}
             <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
+                {currentIndex > 0 && (
+                    <button className="btn btn-secondary" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }} onClick={() => { prevQuestion(); setHintText(''); setHintLevel(1); }}>
+                        Back
+                    </button>
+                )}
                 {currentIndex < questions.length - 1 ? (
-                    <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => { nextQuestion(); setHintText(''); setHintLevel(1); }} disabled={!answers[currentIndex]}>
-                        Next →
+                    <button className="btn btn-primary" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }} onClick={() => { nextQuestion(); setHintText(''); setHintLevel(1); }} disabled={!answers[currentIndex]}>
+                        Next <ChevronRight size={14} />
                     </button>
                 ) : (
                     <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleSubmit} disabled={!answers[currentIndex]}>
@@ -301,6 +454,7 @@ function MCQInterface({ question, selected, onSelect, onConfidence, confidence }
                         padding: '14px 16px', borderRadius: 10, textAlign: 'left', cursor: 'pointer',
                         border: isSelected ? '1px solid var(--accent)' : '1px solid var(--border)',
                         background: isSelected ? 'var(--accent-light)' : 'var(--bg-base)',
+                        color: 'var(--text-primary)',
                         display: 'flex', alignItems: 'center', gap: 12, transition: 'all 150ms ease',
                         borderLeft: isSelected ? '3px solid var(--accent)' : '1px solid var(--border)',
                     }}>
@@ -356,7 +510,7 @@ function CodingInterface({ question, answer, onChange }: any) {
             <Editor height="320px" language="python" theme="vs-dark" value={answer} onChange={onChange}
                 options={{ minimap: { enabled: false }, fontSize: 13, fontFamily: 'JetBrains Mono', scrollBeyondLastLine: false }} />
             <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                <button className="btn btn-primary btn-sm" onClick={runCode}>▶ Run</button>
+                <button className="btn btn-primary btn-sm" onClick={runCode} style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Play size={14} /> Run</button>
                 <button className="btn btn-ghost btn-sm" onClick={() => onChange(question.starter_code || '')}>Reset</button>
             </div>
             <pre style={{ background: '#0F0F10', borderRadius: 8, padding: 12, fontFamily: 'JetBrains Mono', fontSize: 13, marginTop: 8, minHeight: 48, color: output.startsWith('Error') ? '#F87171' : '#4ADE80' }}>
@@ -368,17 +522,27 @@ function CodingInterface({ question, answer, onChange }: any) {
 
 /* ─── Fill Blank Interface ─── */
 function FillBlankInterface({ question, answers, currentIndex, onAnswer }: any) {
-    const parts = question.question.split(/(\[___\])/g);
-    const [blanks, setBlanks] = useState<string[]>(Array(parts.filter((p: string) => p === '[___]').length).fill(''));
+    const parts = question.question.split(/(\[___\]|_{3,})/g);
+    const numBlanks = parts.filter((p: string) => p === '[___]' || p.match(/_{3,}/)).length;
+    
+    const currentAns = answers[currentIndex] ? answers[currentIndex].split('|') : [];
+    const blanks = Array(numBlanks).fill('').map((_, i) => currentAns[i] || '');
+
     return (
-        <div style={{ fontSize: 14, lineHeight: 2 }}>
+        <div style={{ fontSize: 16, fontWeight: 500, lineHeight: 2 }}>
             {parts.map((part: string, i: number) => {
-                if (part !== '[___]') return <span key={i}>{part}</span>;
-                const blankIdx = parts.slice(0, i).filter((p: string) => p === '[___]').length;
+                const isBlank = part === '[___]' || part.match(/_{3,}/);
+                if (!isBlank) return <span key={i}>{part}</span>;
+                
+                const blankIdx = parts.slice(0, i).filter((p: string) => p === '[___]' || p.match(/_{3,}/)).length;
                 return (
                     <input key={i} value={blanks[blankIdx]}
-                        onChange={e => { const b = [...blanks]; b[blankIdx] = e.target.value; setBlanks(b); onAnswer(currentIndex, b.join('|')); }}
-                        style={{ borderBottom: '2px solid var(--accent)', background: 'transparent', outline: 'none', minWidth: 80, textAlign: 'center', fontFamily: 'JetBrains Mono', fontSize: 13, color: 'var(--accent)', padding: '0 4px' }} />
+                        onChange={e => { 
+                            const b = [...blanks]; 
+                            b[blankIdx] = e.target.value; 
+                            onAnswer(currentIndex, b.join('|')); 
+                        }}
+                        style={{ borderBottom: '2px solid var(--accent)', borderTop: 'none', borderLeft: 'none', borderRight: 'none', background: 'transparent', outline: 'none', minWidth: 100, textAlign: 'center', fontFamily: 'JetBrains Mono', fontSize: 14, color: 'var(--accent)', padding: '0 4px', margin: '0 4px' }} />
                 );
             })}
         </div>
@@ -422,7 +586,7 @@ function SortableItem({ id, idx, label }: { id: string; idx: number; label: stri
             style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg-base)', cursor: 'grab', display: 'flex', alignItems: 'center', gap: 12, transform: CSS.Transform.toString(transform), transition }}>
             <span className="badge badge-muted">{idx}</span>
             <span style={{ fontSize: 14 }}>{label}</span>
-            <span style={{ marginLeft: 'auto', color: 'var(--text-tertiary)' }}>⠿</span>
+            <GripVertical size={16} color="var(--text-tertiary)" style={{ marginLeft: 'auto' }} />
         </div>
     );
 }
@@ -467,29 +631,28 @@ function MathInterface({ question, onAnswer }: { question: any; onAnswer: (v: st
 }
 
 /* ─── Score Report ─── */
-function ScoreReport({ report, questions, hintDeductions }: any) {
+function ScoreReport({ report, questions, hintDeductions, lessonId, onRetake }: any) {
     const navigate = useNavigate();
     const finalScore = Math.max(0, (Number(report.overall_score) || 0) - (Number(hintDeductions) || 0));
     const passed = finalScore >= 70;
 
-    // Animated ring
-    const r = 40, c = 2 * Math.PI * r;
-    const offset = c - (finalScore / 100) * c;
-
     return (
-        <div style={{ maxWidth: 600, margin: '48px auto', padding: '0 24px' }}>
-            {/* Score ring */}
-            <div style={{ textAlign: 'center', marginBottom: 32 }}>
-                <svg width="96" height="96" viewBox="0 0 96 96" style={{ display: 'block', margin: '0 auto 16px' }}>
-                    <circle cx="48" cy="48" r={r} fill="none" stroke="var(--bg-muted)" strokeWidth="6" />
-                    <circle cx="48" cy="48" r={r} fill="none" stroke={passed ? 'var(--success)' : 'var(--error)'} strokeWidth="6"
-                        strokeDasharray={c} strokeDashoffset={offset} strokeLinecap="round"
-                        transform="rotate(-90 48 48)"
-                        style={{ transition: 'stroke-dashoffset 800ms ease-out' }} />
-                    <text x="48" y="54" textAnchor="middle" fontSize="22" fontWeight="700" fill={passed ? 'var(--success)' : 'var(--error)'}>{finalScore}</text>
-                </svg>
-                <h2 className="text-h2">{passed ? 'Strong performance' : 'Keep practicing'}</h2>
-                <p style={{ color: 'var(--text-secondary)', marginTop: 4 }}>{report.overall_score} points · {hintDeductions} points adjusted for hints</p>
+        <div style={{ maxWidth: 700, margin: '48px auto', padding: '0 24px' }}>
+            {/* Header Dashboard */}
+            <div style={{ display: 'flex', gap: 16, marginBottom: 32 }}>
+                <div style={{ flex: 1, background: passed ? 'var(--success-light)' : 'var(--error-light)', border: passed ? '1px solid var(--success)' : '1px solid var(--error)', borderRadius: 12, padding: 24, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                    <p style={{ fontSize: 13, color: passed ? 'var(--success)' : 'var(--error)', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 600, marginBottom: 4 }}>Assessment Score</p>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                        <h2 style={{ fontSize: 48, fontWeight: 700, color: passed ? 'var(--success)' : 'var(--error)', lineHeight: 1 }}>{finalScore}</h2>
+                        <span style={{ fontSize: 16, color: passed ? 'var(--success)' : 'var(--error)', opacity: 0.8 }}>/ 100</span>
+                    </div>
+                    <p style={{ marginTop: 12, fontSize: 14, color: passed ? 'var(--success)' : 'var(--error)', opacity: 0.9 }}>{passed ? 'Strong performance. Ready to move forward.' : 'Review recommended before proceeding.'}</p>
+                </div>
+                <div style={{ flex: 1, background: 'var(--bg-subtle)', border: '1px solid var(--border)', borderRadius: 12, padding: 24, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                    <p style={{ fontSize: 13, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 600, marginBottom: 4 }}>Adjustments</p>
+                    <h2 style={{ fontSize: 32, fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1 }}>-{hintDeductions} pts</h2>
+                    <p style={{ marginTop: 8, fontSize: 13, color: 'var(--text-secondary)' }}>Used hints during assessment.</p>
+                </div>
             </div>
 
             {/* Weak areas */}
@@ -505,21 +668,30 @@ function ScoreReport({ report, questions, hintDeductions }: any) {
             {/* Per-question breakdown */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24 }}>
                 {report.per_question?.map((q: any, i: number) => (
-                    <div key={i} className="card" style={{ borderLeft: `3px solid ${q.correct ? 'var(--success)' : 'var(--error)'}`, padding: '12px 16px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span className="badge badge-muted">Q{i + 1}</span>
-                            <span style={{ fontSize: 13, fontWeight: 500 }}>{questions[i]?.question?.slice(0, 60)}...</span>
-                            <span style={{ marginLeft: 'auto', fontSize: 12, color: q.correct ? 'var(--success)' : 'var(--error)' }}>
+                    <div key={i} style={{ borderBottom: '1px solid var(--border)', padding: '16px 0' }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', paddingTop: 2 }}>{i + 1}.</span>
+                            <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)', flex: 1, lineHeight: 1.5 }}>
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{questions[i]?.question}</ReactMarkdown>
+                            </span>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: q.correct ? 'var(--success)' : 'var(--error)' }}>
                                 {q.correct ? 'Correct' : 'Incorrect'}
                             </span>
                         </div>
                         {!q.correct && (
-                            <div style={{ marginTop: 8 }}>
-                                <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>You: <em>{q.student_answer}</em> · Correct: <strong>{q.correct_answer}</strong></p>
+                            <div style={{ marginTop: 12, marginLeft: 24, padding: 12, background: 'var(--bg-subtle)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                    <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>
+                                        You answered: <span style={{ color: 'var(--text-primary)' }}>{q.student_answer}</span>
+                                    </p>
+                                    <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>
+                                        Correct answer: <span style={{ color: 'var(--success)', fontWeight: 600 }}>{q.correct_answer}</span>
+                                    </p>
+                                </div>
                                 {q.explanation && (
-                                    <div style={{ background: 'var(--warning-light)', borderLeft: '3px solid var(--warning)', borderRadius: 6, padding: '8px 12px', marginTop: 6, fontSize: 12 }}>
+                                    <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 10, margin: '10px 0 0 0', fontStyle: 'italic' }}>
                                         {q.explanation}
-                                    </div>
+                                    </p>
                                 )}
                             </div>
                         )}
@@ -528,21 +700,36 @@ function ScoreReport({ report, questions, hintDeductions }: any) {
             </div>
 
             {/* Spaced repetition */}
-            <div className="card-accent" style={{ marginBottom: 24 }}>
-                <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Recommended review schedule</p>
-                {report.weak_areas?.map((a: string, i: number) => {
-                    const days = finalScore < 50 ? 1 : finalScore <= 75 ? 3 : 7;
-                    return <p key={i} style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{a} — review in {days} day{days > 1 ? 's' : ''}</p>;
-                })}
+            <div style={{ background: 'var(--bg-subtle)', border: '1px solid var(--accent)', borderRadius: 12, padding: '20px 24px', marginBottom: 24 }}>
+                <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 12 }}>Recommended Review Schedule</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {report.weak_areas?.map((a: string, i: number) => {
+                        const days = finalScore < 50 ? 1 : finalScore <= 75 ? 3 : 7;
+                        return (
+                            <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--bg-base)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                                <span style={{ fontSize: 14, color: 'var(--text-primary)', fontWeight: 500 }}>{a}</span>
+                                <span className="badge badge-accent">Review in {days} day{days > 1 ? 's' : ''}</span>
+                            </div>
+                        );
+                    })}
+                    {(!report.weak_areas || report.weak_areas.length === 0) && (
+                        <div style={{ padding: '10px 14px', background: 'var(--bg-base)', borderRadius: 8, border: '1px dashed var(--border)', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                            <span style={{ fontSize: 13 }}>No immediate reviews needed. Great job!</span>
+                        </div>
+                    )}
+                </div>
             </div>
 
+            {/* Folder Picker */}
+            <FolderPicker lessonId={lessonId} />
+
             {/* Actions */}
-            <div style={{ display: 'flex', gap: 12 }}>
+            <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
                 <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => navigate('/lesson')}>Re-study sections</button>
-                <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => window.location.reload()}>Retake assessment</button>
+                <button className="btn btn-primary" style={{ flex: 1 }} onClick={onRetake}>Retake assessment</button>
             </div>
             <button className="btn btn-ghost" style={{ width: '100%', marginTop: 8 }} onClick={() => navigate('/library')}>
-                Save to library
+                View in Library
             </button>
         </div>
     );

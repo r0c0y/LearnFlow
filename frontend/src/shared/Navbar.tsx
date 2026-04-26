@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import { useLessonStore } from '../store/lessonStore';
 import { useLibraryStore } from '../store/libraryStore';
 import { useAuthStore } from '../store/authStore';
+import { authFetch } from '../utils/api';
+import { Book, Moon, Sun, Lock } from 'lucide-react';
 
 const API = import.meta.env.VITE_API_URL || '';
 
@@ -24,8 +26,12 @@ export default function Navbar() {
     }, [dark]);
 
     useEffect(() => {
-        fetch(`${API}/api/stats`).then(r => r.json()).then(d => setStreak(d.streak_days || 0)).catch(() => { });
-    }, []);
+        if (user) {
+            authFetch(`${API}/api/stats`).then(r => r.json()).then(d => setStreak(d.streak_days || 0)).catch(() => { });
+        } else {
+            setStreak(0);
+        }
+    }, [user]);
 
     const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + '/');
 
@@ -134,7 +140,7 @@ function NavTab({ to, label, active, locked }: { to: string; label: string; acti
     );
 }
 
-function BookIcon() { return <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></svg>; }
-function MoonIcon() { return <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg>; }
-function SunIcon() { return <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5" /><line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" /><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" /><line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" /><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" /></svg>; }
-function LockIcon() { return <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>; }
+function BookIcon() { return <Book size={16} />; }
+function MoonIcon() { return <Moon size={16} />; }
+function SunIcon() { return <Sun size={16} />; }
+function LockIcon() { return <Lock size={12} />; }

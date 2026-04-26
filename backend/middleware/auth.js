@@ -12,6 +12,7 @@ export function authenticate(req, res, next) {
         return res.status(401).json({ error: "Unauthorized" });
     }
 
-    req.user = payload;
+    // Normalize: JWT stores user_id, but routes use req.user.id
+    req.user = { ...payload, id: payload.user_id };
     next();
 }

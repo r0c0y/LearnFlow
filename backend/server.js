@@ -42,7 +42,6 @@ app.use("/api/explain", explainRouter);
 app.use("/api/hint", hintRouter);
 app.use("/api/transcribe", transcribeRouter);
 app.use("/api/library", libraryRouter);
-app.use("/api/save", libraryRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/export", exportRouter);
 app.use("/api/reviews", exportRouter);

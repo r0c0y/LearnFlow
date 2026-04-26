@@ -35,7 +35,8 @@ export async function initSchema() {
 
     CREATE TABLE IF NOT EXISTS lesson_folders (
       lesson_id TEXT,
-      folder_id TEXT
+      folder_id TEXT,
+      UNIQUE(lesson_id, folder_id)
     );
 
     CREATE TABLE IF NOT EXISTS reviews (
@@ -52,6 +53,17 @@ export async function initSchema() {
       avg_score REAL DEFAULT 0,
       streak_days INTEGER DEFAULT 0,
       last_active TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS assessments (
+      id TEXT PRIMARY KEY,
+      lesson_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      questions_json TEXT,
+      answers_json TEXT,
+      score_report_json TEXT,
+      score INTEGER DEFAULT 0,
+      date_created TEXT
     );
   `);
 
@@ -79,6 +91,16 @@ export async function initSchema() {
     } catch (_err) {
         // column already exists or table already migrated
     }
+
+    try {
+        await db.execute("ALTER TABLE stats ADD COLUMN user_id TEXT");
+    } catch (_err) {
+        // column already exists
+    }
+    
+    try {
+        await db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_stats_user_id ON stats(user_id)");
+    } catch (_err) {}
 
     console.log("✅ Database schema initialized");
 }

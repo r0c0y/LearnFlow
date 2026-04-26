@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLessonStore } from '../store/lessonStore';
 import { Spinner, ErrorMessage } from '../shared/Loading';
+import { Check, CircleDot, ChevronRight, ChevronDown } from 'lucide-react';
+import { authFetch } from '../utils/api';
 
 const API = import.meta.env.VITE_API_URL || '';
 
@@ -160,10 +162,33 @@ export default function PreLessonPage() {
                                     setLocalProgress(stage.progress);
                                 }
                                 if (parsed.stage === 'complete' && parsed.data?.lessons) {
-                                    setLessons(parsed.data.lessons);
-                                    setLessonReady(true);
+                                    const generatedLesson = parsed.data.lessons[0];
                                     const id = `lesson_${Date.now()}`;
+                                    const finalizedLesson = { ...generatedLesson, lesson_id: id };
+                                    
+                                    setLessons([finalizedLesson]);
+                                    setLessonReady(true);
                                     setLessonId(id);
+                                    
+                                    // Save instantly to library
+                                    authFetch(`${API}/api/library/save`, {
+                                        method: 'POST',
+                                        body: JSON.stringify({
+                                            lesson: {
+                                                id: id,
+                                                title: finalizedLesson.title || 'Generated lesson',
+                                                subdomain: null,
+                                                content_json: finalizedLesson,
+                                                blueprint_json: null,
+                                                assessment_json: finalizedLesson.assessment || null,
+                                                score: null,
+                                                date_created: new Date().toISOString(),
+                                                iterations_needed: 0,
+                                                status: 'complete',
+                                            },
+                                        }),
+                                    }).catch(console.warn);
+
                                     setTimeout(() => navigate('/lesson'), 600);
                                 } else if (parsed.stage === 'error') {
                                     setError(parsed.message || 'An error occurred during lesson generation.');
@@ -302,7 +327,7 @@ export default function PreLessonPage() {
                                     width: 56, height: 56, borderRadius: '50%', background: 'var(--accent)',
                                     display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px',
                                 }}>
-                                    <span style={{ color: '#fff', fontSize: 24 }}>✓</span>
+                                    <Check color="#fff" size={32} />
                                 </div>
                                 <h2 className="text-h2" style={{ marginBottom: 8 }}>Your lesson is being built</h2>
                                 <div style={{ height: 4, background: 'var(--bg-muted)', borderRadius: 2, margin: '20px 0', overflow: 'hidden' }}>
@@ -335,7 +360,7 @@ function VerticalStepper({ currentStep, steps }: { currentStep: number; steps: s
                                 background: done ? 'var(--accent)' : 'var(--bg-base)',
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                             }}>
-                                {done && <span style={{ color: '#fff', fontSize: 9 }}>✓</span>}
+                                {done && <Check color="#fff" size={12} strokeWidth={3} />}
                                 {active && <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent)' }} />}
                             </div>
                             {i < steps.length - 1 && <div style={{ width: 1, height: 36, background: 'var(--border)' }} />}
@@ -390,9 +415,9 @@ function KnowledgeMap({ prerequisites, checkedConcepts }: { prerequisites: any[]
                 })}
             </svg>
             <div style={{ display: 'flex', gap: 16, justifyContent: 'center', marginTop: 8, fontSize: 12, color: 'var(--text-secondary)' }}>
-                <span style={{ color: '#059669' }}>● Know it</span>
-                <span style={{ color: '#D97706' }}>● Partial</span>
-                <span style={{ color: '#7C3AED' }}>● Learning target</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#059669' }}><CircleDot size={14} /> Know it</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#D97706' }}><CircleDot size={14} /> Partial</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#7C3AED' }}><CircleDot size={14} /> Learning target</span>
             </div>
         </div>
     );
@@ -449,36 +474,6 @@ Target Level: ${learnerLevel}`;
                     <p style={{ margin: 4, fontSize: 13, color: 'var(--text-secondary)' }}>
                         Framework: {framework} • Level: {learnerLevel}
                     </p>
-                </div>
-                <div style={{ display: 'flex', gap: 8 }}>
-                    <button className="btn btn-secondary btn-sm" onClick={downloadMindMap}>
-                        Download mind map
-                    </button>
-                    <button className="btn btn-secondary btn-sm" onClick={downloadCurriculum}>
-                        Download curriculum
-                    </button>
-                </div>
-            </div>
-
-            {/* Mind Map Visualization */}
-            <div style={{ background: 'var(--bg-subtle)', borderRadius: 12, padding: 16, marginBottom: 16 }}>
-                <h4 style={{ margin: 0, marginBottom: 12, fontSize: 14, fontWeight: 600 }}>Learning Path Mind Map</h4>
-                <div style={{ fontFamily: 'JetBrains Mono', fontSize: 13, lineHeight: 1.6, color: 'var(--text-primary)' }}>
-                    <div style={{ marginBottom: 8 }}>
-                        <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{topic}</span>
-                    </div>
-                    {curriculum.map((lesson, i) => (
-                        <div key={i} style={{ marginLeft: i * 20, marginBottom: 6 }}>
-                            <div style={{ color: '#059669', fontWeight: 500 }}>
-                                {'  '.repeat(i)}└─ {lesson.title} ({lesson.duration})
-                            </div>
-                            {lesson.concepts.map((concept, j) => (
-                                <div key={j} style={{ marginLeft: (i + 1) * 20, color: 'var(--text-secondary)' }}>
-                                    {'  '.repeat(i + 1)}├─ {concept}
-                                </div>
-                            ))}
-                        </div>
-                    ))}
                 </div>
             </div>
 

@@ -43,12 +43,17 @@ interface AssessmentStore {
     setAssessmentType: (t: AssessmentType) => void;
     setQuestions: (q: Question[]) => void;
     nextQuestion: () => void;
+    prevQuestion: () => void;
     setAnswer: (idx: number, ans: string) => void;
     setConfidence: (idx: number, conf: string) => void;
     addHint: (deduction: number) => void;
     setScoreReport: (r: any) => void;
     setSubmitted: (v: boolean) => void;
     replaceQuestion: (idx: number, q: Question) => void;
+    retakeKey: number;
+    bumpRetakeKey: () => void;
+    viewingReport: any;
+    setViewingReport: (r: any) => void;
     reset: () => void;
 }
 
@@ -66,6 +71,7 @@ export const useAssessmentStore = create<AssessmentStore>((set) => ({
     setAssessmentType: (assessmentType) => set({ assessmentType }),
     setQuestions: (questions) => set({ questions }),
     nextQuestion: () => set((s) => ({ currentIndex: Math.min(s.currentIndex + 1, s.questions.length - 1) })),
+    prevQuestion: () => set((s) => ({ currentIndex: Math.max(s.currentIndex - 1, 0) })),
     setAnswer: (idx, ans) => set((s) => ({ answers: { ...s.answers, [idx]: ans } })),
     setConfidence: (idx, conf) => set((s) => ({ confidence: { ...s.confidence, [idx]: conf } })),
     addHint: (deduction) => set((s) => ({ hintsUsed: s.hintsUsed + 1, hintDeductions: s.hintDeductions + deduction })),
@@ -76,8 +82,13 @@ export const useAssessmentStore = create<AssessmentStore>((set) => ({
         qs[idx] = q;
         return { questions: qs };
     }),
+    retakeKey: 0,
+    bumpRetakeKey: () => set((s) => ({ retakeKey: s.retakeKey + 1 })),
+    viewingReport: null,
+    setViewingReport: (viewingReport) => set({ viewingReport }),
     reset: () => set({
         questions: [], currentIndex: 0, answers: {}, confidence: {},
         hintsUsed: 0, hintDeductions: 0, scoreReport: null, submitted: false,
+        viewingReport: null,
     }),
 }));
