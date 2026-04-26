@@ -3,7 +3,8 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { useAuthStore } from '../store/authStore';
 import { authFetch } from '../utils/api';
 
-const API = '';
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API = API_BASE.replace(/\/$/, '').replace(/\/api$/, '');
 
 export default function AnalyticsPage() {
     const { token } = useAuthStore();

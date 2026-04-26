@@ -11,7 +11,8 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { Folder as FolderIcon, ChevronDown, ChevronRight, Circle, Book, Trash2, RotateCcw } from 'lucide-react';
 
-const API = import.meta.env.VITE_API_URL || '';
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API = API_BASE.replace(/\/$/, '').replace(/\/api$/, '');
 
 export default function LibraryPage() {
     const navigate = useNavigate();

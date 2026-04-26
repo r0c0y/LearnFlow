@@ -5,7 +5,8 @@ import { Spinner, ErrorMessage } from '../shared/Loading';
 import { Check, CircleDot, ChevronRight, ChevronDown } from 'lucide-react';
 import { authFetch } from '../utils/api';
 
-const API = import.meta.env.VITE_API_URL || '';
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API = API_BASE.replace(/\/$/, '').replace(/\/api$/, '');
 
 const STAGES = [
     { key: 'ingesting', label: 'Reading your content...', progress: 10 },

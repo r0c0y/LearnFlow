@@ -16,7 +16,8 @@ import { authFetch } from '../utils/api';
 import { ChevronRight, Play, GripVertical } from 'lucide-react';
 import FolderPicker from '../components/FolderPicker';
 
-const API = import.meta.env.VITE_API_URL || '';
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API = API_BASE.replace(/\/$/, '').replace(/\/api$/, '');
 
 export default function AssessmentPage() {
     const { lessons, lessonReady } = useLessonStore();

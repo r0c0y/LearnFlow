@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 
-const API = import.meta.env.VITE_API_URL || '';
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API = API_BASE.replace(/\/$/, '').replace(/\/api$/, '');
 
 export default function AuthPage() {
     const navigate = useNavigate();

@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useLessonStore } from '../store/lessonStore';
 import type { InputType, Framework, LearnerLevel } from '../store/lessonStore';
 
-const API = import.meta.env.VITE_API_URL || '';
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API = API_BASE.replace(/\/$/, '').replace(/\/api$/, '');
 
 const TABS: { id: InputType; label: string }[] = [
     { id: 'prompt', label: 'Topic' },
