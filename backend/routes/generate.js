@@ -32,18 +32,29 @@ router.post("/", async (req, res) => {
             if (res.flush) res.flush();
         }, 15000);
 
+        let buffer = "";
         agentRes.data.on("data", (chunk) => {
-            const raw = chunk.toString("utf8");
-            raw.split("\n").forEach((line) => {
-                if (line.startsWith("data:")) {
-                    res.write(line + "\n\n");
+            buffer += chunk.toString("utf8");
+            const lines = buffer.split("\n");
+            
+            // Keep the last partial line in the buffer
+            buffer = lines.pop() || "";
+
+            lines.forEach((line) => {
+                const trimmed = line.trim();
+                if (trimmed.startsWith("data:")) {
+                    res.write(trimmed + "\n\n");
+                    if (res.flush) res.flush();
                 }
             });
-            if (res.flush) res.flush();
         });
 
         agentRes.data.on("end", () => {
             clearInterval(heartbeat);
+            // Process any remaining data in buffer
+            if (buffer.trim().startsWith("data:")) {
+                res.write(buffer.trim() + "\n\n");
+            }
             res.write("data: {\"stage\":\"done\"}\n\n");
             if (res.flush) res.flush();
             res.end();
