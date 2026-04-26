@@ -58,7 +58,15 @@ async def pipeline_generate(request: PipelineRequest):
         for event in run_pipeline_with_events(state):
             yield event
 
-    return StreamingResponse(event_stream(), media_type="text/event-stream")
+    return StreamingResponse(
+        event_stream(), 
+        media_type="text/event-stream",
+        headers={
+            "X-Accel-Buffering": "no",
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        }
+    )
 
 
 # ─── YouTube transcript endpoint ─────────────────────────────────────────────

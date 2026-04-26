@@ -23,7 +23,14 @@ router.post("/", async (req, res) => {
         const agentRes = await axios.post(
             `${process.env.AGENT_SERVICE_URL}/pipeline/generate`,
             req.body,
-            { responseType: "stream", timeout: 300000 }
+            { 
+                responseType: "stream", 
+                timeout: 300000,
+                headers: {
+                    'Accept-Encoding': 'identity',
+                    'Accept': 'text/event-stream'
+                }
+            }
         );
 
         // Heartbeat to keep connection alive during long AI tasks
