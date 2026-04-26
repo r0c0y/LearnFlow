@@ -31,7 +31,7 @@ class PipelineRequest(BaseModel):
     framework: str = "gagne"
     learner_level: str = "beginner"
     prior_knowledge: dict = {}
-    max_iterations: int = 3
+    max_iterations: int = 1
     iteration: int = 0
     failure_logs: list = []
     student_results: list = []

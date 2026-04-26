@@ -5,9 +5,9 @@ from dotenv import load_dotenv
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "../.env"))
 
-HEAVY_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"  # TODO: revert to "llama-3.3-70b-versatile" when quota resets
+HEAVY_MODEL = "llama-3.3-70b-versatile"
 FAST_MODEL  = "llama-3.1-8b-instant"
-LONG_MODEL  = "meta-llama/llama-4-scout-17b-16e-instruct"
+LONG_MODEL  = "llama-3.1-70b-versatile"
 VOICE_MODEL = "whisper-large-v3"
 
 client = OpenAI(

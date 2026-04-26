@@ -107,18 +107,12 @@ def run_pipeline_with_events(initial_state: dict) -> Generator[str, None, None]:
         elif node_name == "student":
             yield sse("testing", "Testing with simulated student...")
         elif node_name == "evaluator":
-            iteration = node_state.get("iteration", 0)
-            passed = node_state.get("all_passed", True)
-            if passed:
-                yield sse("refining", "Finalizing lessons...")
-            else:
-                yield sse("refining", f"Refining iteration {iteration + 1} of {node_state.get('max_iterations', 3)}...")
+            yield sse("refining", "Finalizing and polishing your lessons...")
         elif node_name == "complete":
             final_state = node_state
+            # Ensure lessons is actually there
+            lessons_to_send = final_state.get("lessons", [])
             yield sse("complete", "Your lesson is ready!", {
-                "lessons": final_state.get("lessons", []),
-                "blueprint": final_state.get("blueprint", {}),
-                "evaluation_results": final_state.get("evaluation_results", []),
-                "iterations_needed": final_state.get("iteration", 0),
+                "lessons": lessons_to_send,
                 "status": "complete",
             })
