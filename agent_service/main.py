@@ -75,8 +75,8 @@ async def pipeline_generate(request: PipelineRequest):
     async def event_stream():
         while True:
             try:
-                # Wait for next event or timeout after 15s to send a heartbeat
-                event = await asyncio.wait_for(queue.get(), timeout=15.0)
+                # Wait for next event or timeout after 10s to send a heartbeat
+                event = await asyncio.wait_for(queue.get(), timeout=10.0)
                 if event is None:
                     break
                 yield event

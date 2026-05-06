@@ -51,8 +51,13 @@ _GROQ_SEMAPHORE = concurrent.futures.ThreadPoolExecutor(max_workers=2)
 
 def _generate_with_retry(model, system, user_msg, lesson_id, max_retries=3):
     """Call LLM with exponential backoff on rate-limit errors."""
+    import random
     for attempt in range(max_retries):
         try:
+            # Staggered start on first attempt to avoid thundering herd
+            if attempt == 0:
+                time.sleep(random.uniform(0.1, 1.5))
+                
             raw = call_llm(model, system, user_msg, max_tokens=4000)
             return json.loads(raw)
         except Exception as e:
@@ -60,8 +65,9 @@ def _generate_with_retry(model, system, user_msg, lesson_id, max_retries=3):
             is_rate_limit = "429" in err or "rate_limit" in err.lower() or "rate limit" in err.lower()
             is_last = attempt == max_retries - 1
             if is_rate_limit and not is_last:
-                wait = 2 ** attempt  # 1s, 2s, 4s
-                print(f"Rate limit on {lesson_id} attempt {attempt + 1}, retrying in {wait}s...")
+                # Exponential backoff with jitter
+                wait = (2 ** attempt) + random.uniform(0.5, 2.0)
+                print(f"Rate limit on {lesson_id} attempt {attempt + 1}, retrying in {wait:.1f}s...")
                 time.sleep(wait)
             else:
                 print(f"Content generation failed for {lesson_id}: {e}")
@@ -143,10 +149,10 @@ Requirements:
     new_lessons = []
 
     if blueprint_lessons:
-        # Process sequentially to strictly avoid Groq rate limits on free tier
-        # Concurrent requests often trigger 429s (thundering herd) and exhaust retries
-        for lesson_bp in blueprint_lessons:
-            new_lessons.append(generate_single_lesson(lesson_bp))
+        # Re-enable controlled concurrency for speed while avoiding 429 thundering herd
+        # max_workers=2 is the sweet spot for Groq free tier stability
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+            new_lessons = list(executor.map(generate_single_lesson, blueprint_lessons))
 
     state["lessons"] = new_lessons
     return state
