@@ -156,7 +156,7 @@ class AdvisorRequest(BaseModel):
 
 
 @app.post("/advisor/analyze")
-async def analyze_input(req: AdvisorRequest):
+def analyze_input(req: AdvisorRequest):
     try:
         raw = call_llm(
             HEAVY_MODEL,
@@ -189,7 +189,7 @@ class PrereqRequest(BaseModel):
 
 
 @app.post("/advisor/prerequisites")
-async def detect_prerequisites(req: PrereqRequest):
+def detect_prerequisites(req: PrereqRequest):
     try:
         history_text = "\n".join([f"{m['role']}: {m['content']}" for m in req.conversation_history])
         raw = call_llm(
@@ -220,7 +220,7 @@ class ClassifierRequest(BaseModel):
 
 
 @app.post("/classify/topic")
-async def classify_topic(req: ClassifierRequest):
+def classify_topic(req: ClassifierRequest):
     try:
         raw = call_llm(
             FAST_MODEL,

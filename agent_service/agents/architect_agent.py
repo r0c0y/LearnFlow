@@ -86,7 +86,7 @@ Content chunks to teach:
 {chunk_text}
 
 Create a lesson blueprint covering all major concepts in the chunks.
-Target 3-6 lessons unless content warrants more.
+Target EXACTLY 3 lessons (no more, no less). Keep it focused and concise.
 """
 
     system_prompt = GAGNE_SYSTEM if framework == "gagne" else MERRILL_SYSTEM

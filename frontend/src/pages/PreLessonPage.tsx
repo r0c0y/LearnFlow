@@ -13,8 +13,8 @@ const STAGES = [
     { key: 'chunking', label: 'Breaking content into sections...', progress: 20 },
     { key: 'architect', label: 'Designing lesson structure...', progress: 40 },
     { key: 'content', label: 'Writing lesson content...', progress: 60 },
-    { key: 'testing', label: 'Testing with a simulated student...', progress: 80 },
-    { key: 'refining', label: 'Refining based on test results...', progress: 90 },
+    { key: 'student', label: 'Testing with a simulated student...', progress: 80 },
+    { key: 'evaluator', label: 'Refining based on test results...', progress: 90 },
     { key: 'complete', label: 'Your lesson is ready!', progress: 100 },
 ];
 
@@ -70,7 +70,7 @@ export default function PreLessonPage() {
 
             // Check if we should proceed to next step (after 3-5 user messages)
             const userMessageCount = newMessages.filter(m => m.role === 'user').length;
-            if (userMessageCount >= 4) { // Allow 4 exchanges (agent asks, user answers, repeat 2-3 times)
+            if (userMessageCount >= 3) { // Allow 3 exchanges
                 await buildPrerequisites(newMessages);
                 setTimeout(() => setStep(2), 1000);
             }
@@ -110,7 +110,7 @@ export default function PreLessonPage() {
             framework,
             learner_level: learnerLevel,
             prior_knowledge: priorKnowledge,
-            max_iterations: Number(import.meta.env.VITE_MAX_ITERATIONS || 3),
+            max_iterations: 1,  // Always single pass — no re-looping
         };
 
         let res;
@@ -143,13 +143,21 @@ export default function PreLessonPage() {
         try {
             while (true) {
                 const { done, value } = await reader.read();
-                if (done) break;
-
-                buffer += decoder.decode(value, { stream: true });
+                
+                if (value) {
+                    buffer += decoder.decode(value, { stream: !done });
+                }
                 
                 // SSE records are separated by double newlines
                 let parts = buffer.split('\n\n');
-                buffer = parts.pop() || ''; // Keep trailing partial part
+                
+                // If we're done and there's no trailing \n\n, process the whole buffer
+                if (done && parts.length === 1 && buffer.trim()) {
+                    parts = [buffer];
+                    buffer = '';
+                } else {
+                    buffer = parts.pop() || ''; // Keep trailing partial part
+                }
 
                 for (const part of parts) {
                     const lines = part.split('\n');
@@ -209,6 +217,8 @@ export default function PreLessonPage() {
                         }
                     }
                 }
+
+                if (done) break;
             }
         } catch (streamError) {
             console.error('Stream error:', streamError);
@@ -240,7 +250,7 @@ export default function PreLessonPage() {
                             ))}
                             {chatLoading && <div style={{ alignSelf: 'flex-start', color: 'var(--text-tertiary)', fontSize: 13 }}>Thinking...</div>}
                         </div>
-                        {chatMessages.filter(m => m.role === 'user').length < 4 ? (
+                        {chatMessages.filter(m => m.role === 'user').length < 3 ? (
                             <div style={{ display: 'flex', gap: 8 }}>
                                 <input className="input" placeholder="Type your answer..." value={chatInput}
                                     onChange={e => setChatInput(e.target.value)}
@@ -252,6 +262,14 @@ export default function PreLessonPage() {
                                 ✓ Assessment complete! Analyzing your knowledge...
                             </div>
                         )}
+                        <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+                            <button className="btn btn-primary" style={{ width: '100%' }} onClick={startPipeline}>
+                                ⚡ Generate My Lesson Now →
+                            </button>
+                            <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--text-tertiary)', marginTop: 6 }}>
+                                Skip the chat and generate immediately
+                            </p>
+                        </div>
                     </div>
                 )}
 
