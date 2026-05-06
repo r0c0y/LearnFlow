@@ -52,11 +52,38 @@ class AnkiRequest(BaseModel):
 
 @app.post("/pipeline/generate")
 async def pipeline_generate(request: PipelineRequest):
-    state = request.model_dump()
+    import asyncio
+    import threading
 
-    def event_stream():
-        for event in run_pipeline_with_events(state):
-            yield event
+    state = request.model_dump()
+    queue = asyncio.Queue()
+
+    loop = asyncio.get_running_loop()
+
+    def run_sync(evt_loop):
+        try:
+            for event in run_pipeline_with_events(state):
+                asyncio.run_coroutine_threadsafe(queue.put(event), evt_loop)
+        except Exception as e:
+            err_msg = json.dumps({"stage": "error", "message": str(e)})
+            asyncio.run_coroutine_threadsafe(queue.put(f"data: {err_msg}\n\n"), evt_loop)
+        finally:
+            asyncio.run_coroutine_threadsafe(queue.put(None), evt_loop)
+
+    threading.Thread(target=run_sync, args=(loop,), daemon=True).start()
+
+    async def event_stream():
+        while True:
+            try:
+                # Wait for next event or timeout after 15s to send a heartbeat
+                event = await asyncio.wait_for(queue.get(), timeout=15.0)
+                if event is None:
+                    break
+                yield event
+            except asyncio.TimeoutError:
+                # Heartbeat to keep connection alive through Hugging Face/Render load balancers
+                ping_msg = json.dumps({"stage": "ping", "message": "Working..."})
+                yield f"data: {ping_msg}\n\n"
 
     return StreamingResponse(
         event_stream(), 
@@ -244,3 +271,7 @@ Return JSON:
 @app.get("/health")
 async def health():
     return {"status": "ok", "service": "learnflow-agent"}
+
+@app.get("/")
+async def root():
+    return {"message": "LearnFlow Agent Service is running. Access /docs for API documentation."}

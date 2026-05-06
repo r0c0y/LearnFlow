@@ -51,6 +51,7 @@ app.use("/api/reviews", exportRouter);
 app.use("/api/stats", statsRouter);
 
 app.get("/health", (_req, res) => res.json({ status: "ok", service: "learnflow-backend" }));
+app.get("/", (_req, res) => res.json({ message: "LearnFlow Backend is running." }));
 
 // Export for Vercel
 export { app, initSchema };
