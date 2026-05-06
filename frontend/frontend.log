@@ -9,3 +9,6 @@
   ➜  Network: use --host to expose
 2:49:18 PM [vite] (client) page reload index.html
 2:49:18 PM [vite] (client) page reload index.html
+2:51:52 PM [vite] (client) hmr update /src/pages/AnalyticsPage.tsx
+3:05:08 PM [vite] (client) hmr update /src/pages/PreLessonPage.tsx
+3:05:17 PM [vite] (client) hmr update /src/pages/AnalyticsPage.tsx

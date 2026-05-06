@@ -84,10 +84,21 @@ export default function AnalyticsPage() {
                 <div className="card" style={{ padding: 24 }}>
                     <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 24 }}>Score Trend (Last 7 Days)</h3>
                     <ResponsiveContainer width="100%" height={280}>
-                        <LineChart data={scoreTrendData}>
+                        <LineChart data={scoreTrendData} margin={{ left: -20, right: 10 }}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-                            <XAxis dataKey="date" hide />
-                            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'var(--text-tertiary)' }} />
+                            <XAxis 
+                                dataKey="date" 
+                                tick={{ fontSize: 10, fill: 'var(--text-tertiary)' }} 
+                                axisLine={false} 
+                                tickLine={false} 
+                                tickFormatter={(str) => {
+                                    if (!str) return '';
+                                    const d = new Date(str);
+                                    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                                }}
+                                minTickGap={30}
+                            />
+                            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'var(--text-tertiary)' }} domain={[0, 100]} />
                             <Tooltip contentStyle={{ background: 'var(--bg-base)', border: '1px solid var(--border)', borderRadius: 8 }} />
                             <Line type="monotone" dataKey="avg" stroke="var(--accent)" strokeWidth={3} dot={{ r: 4, fill: 'var(--accent)' }} activeDot={{ r: 6 }} connectNulls />
                         </LineChart>

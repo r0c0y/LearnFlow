@@ -260,7 +260,7 @@ export default function PreLessonPage() {
                                 </div>
                                 <div style={{ display: 'flex', justifyContent: 'center' }}>
                                     <ToggleGroup
-                                        label="Your Proficiency"
+                                        label="Proficiency"
                                         options={[{ value: 'beginner', label: 'Beginner' }, { value: 'intermediate', label: 'Intermediate' }, { value: 'expert', label: 'Expert' }]}
                                         value={learnerLevel} onChange={v => setLearnerLevel(v as any)}
                                     />
