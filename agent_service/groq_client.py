@@ -18,6 +18,18 @@ client = OpenAI(
 groq_sdk = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 
+def _clean_json_string(s: str) -> str:
+    """Strip markdown code blocks and whitespace."""
+    s = s.strip()
+    if s.startswith("```"):
+        # Remove starting ```json or ```
+        s = s.split("\n", 1)[-1] if "\n" in s else s[3:]
+        # Remove ending ```
+        if s.endswith("```"):
+            s = s[:-3]
+    return s.strip()
+
+
 def call_llm(
     model_override,
     system_prompt,
@@ -38,19 +50,26 @@ def call_llm(
 
     try:
         response = client.chat.completions.create(**kwargs)
-        return response.choices[0].message.content
+        content = response.choices[0].message.content
+        if json_mode:
+            return _clean_json_string(content)
+        return content
     except Exception as e:
         error_str = str(e)
+        print(f"DEBUG: LLM error on {model_override}: {error_str}")
+        
         # On json_validate_failed (400), retry without json_mode
         if "json_validate_failed" in error_str or ("400" in error_str and "json" in error_str.lower()):
             print(f"JSON mode failed on {model_override}, retrying without json_mode")
             kwargs.pop("response_format", None)
             try:
                 response = client.chat.completions.create(**kwargs)
-                return response.choices[0].message.content
+                content = response.choices[0].message.content
+                return _clean_json_string(content) if json_mode else content
             except Exception as e2:
                 print(f"Retry without json_mode also failed: {e2}")
                 raise e2
+                
         # On rate limit (429), fall back to a smaller/faster model
         if "429" in error_str or "rate_limit" in error_str.lower():
             fallback = FAST_MODEL if model_override != FAST_MODEL else LONG_MODEL
@@ -58,11 +77,12 @@ def call_llm(
             try:
                 kwargs["model"] = fallback
                 response = client.chat.completions.create(**kwargs)
-                return response.choices[0].message.content
+                content = response.choices[0].message.content
+                return _clean_json_string(content) if json_mode else content
             except Exception as e2:
                 print(f"Fallback model {fallback} also failed: {e2}")
                 raise e2
-        print(f"Error calling LLM on {model_override}: {e}")
+        
         raise e
 
 
