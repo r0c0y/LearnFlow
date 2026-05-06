@@ -73,17 +73,23 @@ async def pipeline_generate(request: PipelineRequest):
     threading.Thread(target=run_sync, args=(loop,), daemon=True).start()
 
     async def event_stream():
+        print(f"DEBUG: Starting event stream for pipeline {uuid.uuid4().hex[:8]}")
         while True:
             try:
-                # Wait for next event or timeout after 10s to send a heartbeat
-                event = await asyncio.wait_for(queue.get(), timeout=10.0)
+                # Wait for next event or timeout after 5s to send a heartbeat
+                # This keeps the connection alive on Vercel/Render (10-30s limits)
+                event = await asyncio.wait_for(queue.get(), timeout=5.0)
                 if event is None:
+                    print("DEBUG: Pipeline complete, closing stream")
                     break
                 yield event
             except asyncio.TimeoutError:
-                # Heartbeat to keep connection alive through Hugging Face/Render load balancers
+                # Heartbeat to keep connection alive
                 ping_msg = json.dumps({"stage": "ping", "message": "Working..."})
                 yield f"data: {ping_msg}\n\n"
+            except Exception as stream_err:
+                print(f"DEBUG: Stream yield error: {stream_err}")
+                break
 
     return StreamingResponse(
         event_stream(), 
