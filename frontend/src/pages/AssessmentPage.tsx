@@ -766,21 +766,19 @@ function ScoreReport({ report, questions, hintDeductions, lessonId, onRetake }: 
 
             {/* Main Actions */}
             <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
-                <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => navigate('/lesson')}>Re-study sections</button>
-                <button className="btn btn-primary" style={{ flex: 1 }} onClick={onRetake}>Retake assessment</button>
+                <button className="btn btn-secondary" style={{ flex: 1, height: 48 }} onClick={() => navigate('/lesson')}>Re-study Sections</button>
+                <button className="btn btn-primary" style={{ flex: 1, height: 48 }} onClick={onRetake}>Retake Assessment</button>
             </div>
 
             {/* Subtle Folder Organization */}
-            <div style={{ marginTop: 32, borderTop: '1px solid var(--border)', paddingTop: 16 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                    <span style={{ fontSize: 13, color: 'var(--text-tertiary)', fontWeight: 500 }}>Organize this lesson?</span>
-                    <button className="btn btn-ghost btn-sm" onClick={() => navigate('/library')}>
-                        View in Library
-                    </button>
-                </div>
-                <div style={{ background: 'rgba(255,255,255,0.015)', borderRadius: 12, padding: '4px 12px', border: '1px solid var(--border)' }}>
+            <div style={{ marginTop: 40, borderTop: '1px dashed var(--border)', paddingTop: 24, textAlign: 'center' }}>
+                <p style={{ fontSize: 13, color: 'var(--text-tertiary)', marginBottom: 16, fontWeight: 500 }}>Organize this lesson to your Library</p>
+                <div style={{ maxWidth: 400, margin: '0 auto' }}>
                     <FolderPicker lessonId={lessonId} />
                 </div>
+                <button className="btn btn-ghost btn-sm" style={{ marginTop: 16, color: 'var(--accent)', fontWeight: 600 }} onClick={() => navigate('/library')}>
+                    Go to Library →
+                </button>
             </div>
         </div>
     );

@@ -1,4 +1,5 @@
-
-> backend@1.0.0 start
-> node server.js
-
+DEBUG: server.js starting...
+◇ injected◇ injected env (8) from ../.env // tip: ⌘ multiple files { path⚠️  T✅ Connecting to ⚠️  TURSO_DATABASE_URL not set — using local ✅ Database schema initialized
+🚀 LearnFlow backend running on port 3001
+led to initialize da✅ Database schema initialized
+🚀 LearnFlow backend running on port 3001

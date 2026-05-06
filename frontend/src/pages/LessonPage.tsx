@@ -232,9 +232,19 @@ function LessonSection({ section, lesson, sectionIndex, total, isLast, onNext, o
                     <h1 style={{ fontSize: 32, fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1.2 }}>{section.label}</h1>
                 </div>
 
-                <div style={{ display: 'flex', gap: 8, marginLeft: 24, marginTop: 24 }}>
-                    <button className="btn-icon" onClick={() => handleExplain('analogy')} title="Get an analogy" style={{ width: 36, height: 36 }}><Lightbulb size={18} /></button>
-                    <button className="btn-icon" onClick={() => handleExplain('simpler')} title="Simplify" style={{ width: 36, height: 36 }}><Sparkles size={18} /></button>
+                <div style={{ display: 'flex', gap: 12, marginLeft: 24, marginTop: 24 }}>
+                    <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                        <button className="btn-icon" onClick={() => handleExplain('analogy')} title="Explain with an Analogy" style={{ width: 42, height: 42, borderRadius: '50%', background: 'var(--bg-subtle)', border: '1px solid var(--border)' }}>
+                            <Lightbulb size={20} color="var(--accent)" />
+                        </button>
+                        <span style={{ fontSize: 10, color: 'var(--text-tertiary)', marginTop: 4, fontWeight: 500 }}>Analogy</span>
+                    </div>
+                    <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                        <button className="btn-icon" onClick={() => handleExplain('simpler')} title="Simplify this Section" style={{ width: 42, height: 42, borderRadius: '50%', background: 'var(--bg-subtle)', border: '1px solid var(--border)' }}>
+                            <Sparkles size={20} color="var(--accent)" />
+                        </button>
+                        <span style={{ fontSize: 10, color: 'var(--text-tertiary)', marginTop: 4, fontWeight: 500 }}>Simplify</span>
+                    </div>
                 </div>
             </div>
 
@@ -301,21 +311,33 @@ function LessonSection({ section, lesson, sectionIndex, total, isLast, onNext, o
             {/* Celebration State for Last Section */}
             {isLast && (
                 <div style={{
-                    marginTop: 48, padding: '40px', borderRadius: '24px', textAlign: 'center',
-                    background: 'linear-gradient(135deg, var(--accent-light) 0%, rgba(255,255,255,0) 100%)',
-                    border: '1px solid var(--accent)',
-                    position: 'relative', overflow: 'hidden'
+                    marginTop: 64, padding: '32px', borderRadius: '20px', textAlign: 'center',
+                    background: 'var(--bg-subtle)', border: '1px solid var(--border)',
+                    position: 'relative'
                 }}>
-                    <Target size={48} color="var(--accent)" style={{ marginBottom: 16, opacity: 0.2 }} />
-                    <h3 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>You're all caught up!</h3>
-                    <p style={{ fontSize: 15, color: 'var(--text-secondary)', marginBottom: 24, maxWidth: 400, margin: '0 auto 24px' }}>
-                        You've finished all the sections for this lesson. Great job! Ready to see what you've learned?
+                    <div style={{ 
+                        position: 'absolute', top: -20, left: '50%', transform: 'translateX(-50%)',
+                        background: 'var(--bg-base)', padding: '8px 16px', borderRadius: '20px',
+                        border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8
+                    }}>
+                        <Target size={18} color="var(--accent)" />
+                        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Checkpoint Reached</span>
+                    </div>
+                    
+                    <h3 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8, marginTop: 8 }}>You're all caught up!</h3>
+                    <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 28, maxWidth: 380, margin: '0 auto 28px', lineHeight: 1.6 }}>
+                        You've mastered all the concepts in this lesson. Ready to validate your knowledge?
                     </p>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-                        <button className="btn btn-primary btn-lg" onClick={() => navigate('/assessment')} style={{ padding: '16px 48px', fontSize: 18 }}>
-                            Begin Assessment
+                    
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>
+                        <button className="btn btn-primary" onClick={() => navigate('/assessment')} style={{ padding: '12px 40px', fontSize: 15, borderRadius: '12px' }}>
+                            Start Assessment
                         </button>
-                        <FolderPicker lessonId={lesson.lesson_id || ''} />
+                        
+                        <div style={{ width: '100%', maxWidth: 300, paddingTop: 20, borderTop: '1px dashed var(--border)' }}>
+                            <p style={{ fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 12, fontWeight: 500 }}>Save this lesson to your library</p>
+                            <FolderPicker lessonId={lesson.lesson_id || ''} />
+                        </div>
                     </div>
                 </div>
             )}

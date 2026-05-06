@@ -141,18 +141,11 @@ export default function InputPage() {
                             <textarea className="textarea" style={{ minHeight: 100 }}
                                 placeholder="e.g. Teach me Python list comprehensions from scratch"
                                 value={inputContent} onChange={e => setInputContent(e.target.value)} />
-                            <div style={{ display: 'flex', gap: 12, marginTop: 10, flexWrap: 'wrap' }}>
-                                <ToggleGroup
-                                    label="Framework"
-                                    options={[{ value: 'gagne', label: 'Gagne' }, { value: 'merrill', label: 'Merrill' }, { value: 'bloom', label: 'Bloom' }]}
-                                    value={framework} onChange={v => setFramework(v as Framework)}
-                                />
                                 <ToggleGroup
                                     label="Level"
                                     options={[{ value: 'beginner', label: 'Beginner' }, { value: 'intermediate', label: 'Intermediate' }, { value: 'expert', label: 'Expert' }]}
                                     value={learnerLevel} onChange={v => setLearnerLevel(v as LearnerLevel)}
                                 />
-                            </div>
                         </>
                     )}
 

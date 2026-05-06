@@ -80,59 +80,55 @@ export default function FolderPicker({ lessonId, currentFolderId, onSaved }: Fol
     }
 
     return (
-        <div style={{
-            background: 'var(--bg-subtle)', border: '1px solid var(--border)', borderRadius: 12,
-            padding: 16, marginTop: 16,
-        }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                <Folder size={16} style={{ color: 'var(--accent)' }} />
-                <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>Save to folder</span>
-            </div>
-
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <select
-                    className="input"
-                    style={{ flex: 1, height: 36, fontSize: 13 }}
-                    value={selected}
-                    onChange={e => { setSelected(e.target.value); setSaved(false); }}
-                >
-                    <option value="">Select a folder...</option>
-                    {folders.map(f => (
-                        <option key={f.id} value={f.id}>{f.name}</option>
-                    ))}
-                </select>
-
-                <button
-                    className="btn btn-primary btn-sm"
-                    onClick={handleSave}
-                    disabled={!selected || saved}
-                    style={{ minWidth: 80, display: 'flex', alignItems: 'center', gap: 4 }}
-                >
-                    {saved ? <><Check size={14} /> Saved</> : 'Save'}
-                </button>
-            </div>
-
+        <div style={{ width: '100%' }}>
             {!creating ? (
-                <button
-                    className="btn btn-ghost btn-sm"
-                    style={{ marginTop: 8, fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}
-                    onClick={() => setCreating(true)}
-                >
-                    <Plus size={12} /> Create new folder
-                </button>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ position: 'relative', flex: 1, maxWidth: 200 }}>
+                        <select
+                            className="input"
+                            style={{ width: '100%', height: 36, fontSize: 13, paddingLeft: 32, borderRadius: 10, appearance: 'none', background: 'var(--bg-muted)' }}
+                            value={selected}
+                            onChange={e => { setSelected(e.target.value); setSaved(false); }}
+                        >
+                            <option value="">Select folder...</option>
+                            {folders.map(f => (
+                                <option key={f.id} value={f.id}>{f.name}</option>
+                            ))}
+                        </select>
+                        <Folder size={14} style={{ position: 'absolute', left: 10, top: 11, color: 'var(--text-tertiary)' }} />
+                    </div>
+
+                    <button
+                        className="btn btn-primary btn-sm"
+                        onClick={handleSave}
+                        disabled={!selected || saved}
+                        style={{ height: 36, minWidth: 70, borderRadius: 10, fontSize: 13 }}
+                    >
+                        {saved ? <Check size={16} /> : 'Save'}
+                    </button>
+                    
+                    <button
+                        className="btn-icon"
+                        style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--bg-muted)', border: '1px solid var(--border)' }}
+                        onClick={() => setCreating(true)}
+                        title="New Folder"
+                    >
+                        <Plus size={16} />
+                    </button>
+                </div>
             ) : (
-                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'center', animation: 'fadeIn 200ms ease' }}>
                     <input
                         className="input"
-                        style={{ flex: 1, height: 32, fontSize: 12 }}
-                        placeholder="Folder name..."
+                        style={{ flex: 1, maxWidth: 200, height: 36, fontSize: 13, borderRadius: 10 }}
+                        placeholder="New folder name..."
                         value={newName}
                         onChange={e => setNewName(e.target.value)}
                         onKeyDown={e => e.key === 'Enter' && handleCreateFolder()}
                         autoFocus
                     />
-                    <button className="btn btn-primary btn-sm" onClick={handleCreateFolder} style={{ fontSize: 12 }}>Create</button>
-                    <button className="btn btn-ghost btn-sm" onClick={() => { setCreating(false); setNewName(''); }} style={{ fontSize: 12 }}>Cancel</button>
+                    <button className="btn btn-primary btn-sm" onClick={handleCreateFolder} style={{ height: 36, borderRadius: 10 }}>Create</button>
+                    <button className="btn btn-ghost btn-sm" onClick={() => { setCreating(false); setNewName(''); }} style={{ height: 36, fontSize: 13 }}>×</button>
                 </div>
             )}
         </div>

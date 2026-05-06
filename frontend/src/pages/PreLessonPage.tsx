@@ -22,7 +22,7 @@ type Step = 1 | 2 | 3 | 4 | 5;
 
 export default function PreLessonPage() {
     const navigate = useNavigate();
-    const { inputContent, chunks, framework, learnerLevel, priorKnowledge,
+    const { inputContent, chunks, framework, learnerLevel, setLearnerLevel, priorKnowledge,
         setLessons, setStatus, setProgress, setPriorKnowledge, setLessonReady, setLessonId } = useLessonStore();
 
     const [step, setStep] = useState<Step>(1);
@@ -251,25 +251,29 @@ export default function PreLessonPage() {
                             {chatLoading && <div style={{ alignSelf: 'flex-start', color: 'var(--text-tertiary)', fontSize: 13 }}>Thinking...</div>}
                         </div>
                         {chatMessages.filter(m => m.role === 'user').length < 3 ? (
-                            <div style={{ display: 'flex', gap: 8 }}>
-                                <input className="input" placeholder="Type your answer..." value={chatInput}
-                                    onChange={e => setChatInput(e.target.value)}
-                                    onKeyDown={e => e.key === 'Enter' && sendChat()} />
-                                <button className="btn btn-primary" onClick={sendChat} disabled={chatLoading}>Send</button>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                    <input className="input" placeholder="Type your answer..." value={chatInput}
+                                        onChange={e => setChatInput(e.target.value)}
+                                        onKeyDown={e => e.key === 'Enter' && sendChat()} />
+                                    <button className="btn btn-primary" onClick={sendChat} disabled={chatLoading}>Send</button>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                                    <ToggleGroup
+                                        label="Your Proficiency"
+                                        options={[{ value: 'beginner', label: 'Beginner' }, { value: 'intermediate', label: 'Intermediate' }, { value: 'expert', label: 'Expert' }]}
+                                        value={learnerLevel} onChange={v => setLearnerLevel(v as any)}
+                                    />
+                                </div>
                             </div>
                         ) : (
                             <div style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: 14, padding: '12px' }}>
                                 ✓ Assessment complete! Analyzing your knowledge...
+                                <button className="btn btn-primary" style={{ width: '100%', marginTop: 12 }} onClick={startPipeline}>
+                                    Build My Lesson →
+                                </button>
                             </div>
                         )}
-                        <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
-                            <button className="btn btn-primary" style={{ width: '100%' }} onClick={startPipeline}>
-                                ⚡ Generate My Lesson Now →
-                            </button>
-                            <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--text-tertiary)', marginTop: 6 }}>
-                                Skip the chat and generate immediately
-                            </p>
-                        </div>
                     </div>
                 )}
 
@@ -538,6 +542,29 @@ Target Level: ${learnerLevel}`;
                     <strong>Total Duration:</strong> ~2 hours • <strong>Lessons:</strong> {curriculum.length} •
                     <strong>Assessment:</strong> Interactive quiz at the end
                 </p>
+            </div>
+        </div>
+    );
+}
+
+/* ─── Sub-components ─── */
+function ToggleGroup({ label, options, value, onChange }: { label: string; options: { value: string; label: string }[]; value: string; onChange: (v: string) => void }) {
+    return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--bg-muted)', padding: '4px 8px', borderRadius: 20 }}>
+            <span style={{ fontSize: 11, color: 'var(--text-tertiary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</span>
+            <div style={{ display: 'flex', gap: 2 }}>
+                {options.map(o => (
+                    <button key={o.value}
+                        style={{
+                            padding: '4px 12px', borderRadius: 16, fontSize: 11, fontWeight: 600, border: 'none', cursor: 'pointer',
+                            background: value === o.value ? 'var(--accent)' : 'transparent',
+                            color: value === o.value ? '#fff' : 'var(--text-secondary)',
+                            transition: 'all 150ms ease',
+                        }}
+                        onClick={() => onChange(o.value)}>
+                        {o.label}
+                    </button>
+                ))}
             </div>
         </div>
     );
