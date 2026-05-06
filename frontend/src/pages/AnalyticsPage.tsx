@@ -67,7 +67,7 @@ export default function AnalyticsPage() {
                 </div>
                 <div className="card-subtle" style={{ padding: 24 }}>
                     <p style={{ margin: 0, fontSize: 13, color: 'var(--text-tertiary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Avg Score</p>
-                    <div style={{ fontSize: 36, fontWeight: 800, color: 'var(--success)', marginTop: 8 }}>{Math.round(stats.avg_score || 0)}%</div>
+                    <div style={{ fontSize: 36, fontWeight: 800, color: 'var(--success)', marginTop: 8 }}>{Number(stats.avg_score || 0).toFixed(2)}%</div>
                 </div>
                 <div className="card-subtle" style={{ padding: 24 }}>
                     <p style={{ margin: 0, fontSize: 13, color: 'var(--text-tertiary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Study Streak</p>
