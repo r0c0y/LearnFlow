@@ -523,14 +523,23 @@ function CodingInterface({ question, answer, onChange }: any) {
     const [output, setOutput] = useState('');
 
     async function runCode() {
-        setOutput('Running...');
+        if (!(window as any).pyodide) {
+            setOutput('⌛ Pyodide is still loading... please wait a few seconds.');
+            // Try to trigger init if it hasn't started
+            if ((window as any).initPyodide) (window as any).initPyodide();
+            return;
+        }
+        
+        setOutput('🚀 Running...');
         try {
             // @ts-ignore
-            if ((window as any).pyodide) {
-                const result = await (window as any).pyodide.runPythonAsync(answer);
-                setOutput(String(result ?? '(no output)'));
-            } else { setOutput('Run Python locally — Pyodide loading...'); }
-        } catch (e: any) { setOutput(`Error: ${e.message}`); }
+            const pyodide = (window as any).pyodide;
+            // Clear previous output/variables if possible or just run
+            const result = await pyodide.runPythonAsync(answer);
+            setOutput(String(result ?? '(Execution complete - no output)'));
+        } catch (e: any) { 
+            setOutput(`❌ Error: ${e.message}`); 
+        }
     }
 
     return (
@@ -538,12 +547,18 @@ function CodingInterface({ question, answer, onChange }: any) {
             <div className="card-subtle" style={{ padding: 16, marginBottom: 12, fontSize: 14 }}>{question.question}</div>
             <Editor height="320px" language="python" theme="vs-dark" value={answer} onChange={onChange}
                 options={{ minimap: { enabled: false }, fontSize: 13, fontFamily: 'JetBrains Mono', scrollBeyondLastLine: false }} />
-            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+            <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' }}>
                 <button className="btn btn-primary btn-sm" onClick={runCode} style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Play size={14} /> Run</button>
                 <button className="btn btn-ghost btn-sm" onClick={() => onChange(question.starter_code || '')}>Reset</button>
+                {!(window as any).pyodide && (
+                    <span style={{ fontSize: 11, color: 'var(--text-tertiary)', marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span className="animate-spin" style={{ width: 10, height: 10, border: '1px solid var(--border)', borderTopColor: 'var(--accent)', borderRadius: '50%' }} />
+                        Initializing Python...
+                    </span>
+                )}
             </div>
-            <pre style={{ background: '#0F0F10', borderRadius: 8, padding: 12, fontFamily: 'JetBrains Mono', fontSize: 13, marginTop: 8, minHeight: 48, color: output.startsWith('Error') ? '#F87171' : '#4ADE80' }}>
-                {output || '// Run your code to see output'}
+            <pre style={{ background: '#0F0F10', borderRadius: 8, padding: 12, fontFamily: 'JetBrains Mono', fontSize: 13, marginTop: 8, minHeight: 48, color: output.includes('Error') ? '#F87171' : output.includes('Running') ? 'var(--text-tertiary)' : '#4ADE80', whiteSpace: 'pre-wrap', border: '1px solid var(--border)' }}>
+                {output || '// Run your Python code to see the output here'}
             </pre>
         </div>
     );

@@ -19,15 +19,37 @@
   <script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js" crossorigin></script>
   <script>
     async function initPyodide() {
+      if (window.pyodide) return;
+      console.log("⌛ Initializing Pyodide...");
       try {
-        window.pyodide = await loadPyodide();
-        console.log("✅ Pyodide loaded");
+        // Explicitly set indexURL to CDN to avoid loading from local origin in hosted environments
+        window.pyodide = await loadPyodide({
+          indexURL: "https://cdn.jsdelivr.net/pyodide/v0.25.0/full/"
+        });
+        console.log("✅ Pyodide loaded successfully");
       } catch (e) {
-        console.warn("Pyodide failed to load (code execution disabled):", e.message);
+        console.error("❌ Pyodide failed to load:", e.message);
+        // Retry once after a delay if it was a network glitch
+        setTimeout(async () => {
+          if (!window.pyodide) {
+             try {
+               window.pyodide = await loadPyodide({
+                 indexURL: "https://cdn.jsdelivr.net/pyodide/v0.25.0/full/"
+               });
+               console.log("✅ Pyodide loaded on retry");
+             } catch (retryErr) {
+               console.error("❌ Pyodide retry failed:", retryErr.message);
+             }
+          }
+        }, 3000);
       }
     }
-    // Defer until after page paint so it doesn't block UI
-    window.addEventListener("load", initPyodide);
+    // Start loading as soon as possible
+    if (document.readyState === "complete") {
+      initPyodide();
+    } else {
+      window.addEventListener("load", initPyodide);
+    }
   </script>
 </head>
 
