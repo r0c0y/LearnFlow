@@ -710,37 +710,60 @@ function ScoreReport({ report, questions, hintDeductions, lessonId, onRetake }: 
             )}
 
             {/* Per-question breakdown */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24 }}>
-                {report.per_question?.map((q: any, i: number) => (
-                    <div key={i} style={{ borderBottom: '1px solid var(--border)', padding: '16px 0' }}>
-                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', paddingTop: 2 }}>{i + 1}.</span>
-                            <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)', flex: 1, lineHeight: 1.5 }}>
-                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{questions[i]?.question}</ReactMarkdown>
-                            </span>
-                            <span style={{ fontSize: 12, fontWeight: 600, color: q.correct ? 'var(--success)' : 'var(--error)' }}>
-                                {q.correct ? 'Correct' : 'Incorrect'}
-                            </span>
-                        </div>
-                        {!q.correct && (
-                            <div style={{ marginTop: 12, marginLeft: 24, padding: 12, background: 'var(--bg-subtle)', borderRadius: 8, border: '1px solid var(--border)' }}>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                    <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>
-                                        You answered: <span style={{ color: 'var(--text-primary)' }}>{q.student_answer}</span>
-                                    </p>
-                                    <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>
-                                        Correct answer: <span style={{ color: 'var(--success)', fontWeight: 600 }}>{q.correct_answer}</span>
-                                    </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 32 }}>
+                <p className="text-label" style={{ color: 'var(--text-tertiary)', marginBottom: 0 }}>Detailed Breakdown</p>
+                {report.per_question?.map((q: any, i: number) => {
+                    const isCorrect = !!q.correct;
+                    return (
+                        <div key={i} className="card-subtle" style={{ 
+                            padding: 20, 
+                            borderLeft: `4px solid ${isCorrect ? 'var(--success)' : 'var(--error)'}`,
+                            background: isCorrect ? 'rgba(34,197,94,0.02)' : 'rgba(239,68,68,0.02)'
+                        }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 12 }}>
+                                <div style={{ flex: 1 }}>
+                                    <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)', display: 'block', marginBottom: 4 }}>Question {i + 1}</span>
+                                    <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.5 }}>
+                                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{questions[i]?.question}</ReactMarkdown>
+                                    </div>
                                 </div>
-                                {q.explanation && (
-                                    <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 10, margin: '10px 0 0 0', fontStyle: 'italic' }}>
-                                        {q.explanation}
-                                    </p>
+                                <div style={{ 
+                                    padding: '4px 10px', 
+                                    borderRadius: 12, 
+                                    fontSize: 11, 
+                                    fontWeight: 700, 
+                                    background: isCorrect ? 'var(--success-light)' : 'var(--error-light)', 
+                                    color: isCorrect ? 'var(--success)' : 'var(--error)',
+                                    whiteSpace: 'nowrap'
+                                }}>
+                                    {isCorrect ? '✓ Correct' : '✕ Incorrect'}
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 16, padding: 12, background: 'var(--bg-base)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                                <div>
+                                    <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)', display: 'block', marginBottom: 4 }}>Your Answer</span>
+                                    <p style={{ fontSize: 13, color: isCorrect ? 'var(--text-primary)' : 'var(--error)', margin: 0, fontWeight: 500 }}>{q.student_answer || '—'}</p>
+                                </div>
+                                {!isCorrect && (
+                                    <div>
+                                        <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)', display: 'block', marginBottom: 4 }}>Correct Answer</span>
+                                        <p style={{ fontSize: 13, color: 'var(--success)', margin: 0, fontWeight: 600 }}>{q.correct_answer || '—'}</p>
+                                    </div>
                                 )}
                             </div>
-                        )}
-                    </div>
-                ))}
+
+                            {q.explanation && (
+                                <div style={{ marginTop: 16, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                                    <div style={{ width: 20, height: 20, borderRadius: '50%', background: 'var(--accent-light)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, flexShrink: 0 }}>i</div>
+                                    <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5, fontStyle: 'italic' }}>
+                                        {q.explanation}
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
             </div>
 
             {/* Spaced repetition */}

@@ -133,3 +133,7 @@
       at /Users/priyanshutomar/Desktop/LearnFlow/frontend/node_modules/gensync/index.js:273:13
       at async.call.result.err.err (/Users/priyanshutomar/Desktop/LearnFlow/frontend/node_modules/gensync/index.js:223:11)
 3:08:44 PM [vite] (client) hmr update /src/pages/AnalyticsPage.tsx
+3:10:36 PM [vite] (client) hmr update /src/pages/AnalyticsPage.tsx
+3:15:34 PM [vite] (client) hmr update /src/pages/AnalyticsPage.tsx
+3:15:50 PM [vite] (client) hmr update /src/pages/AnalyticsPage.tsx
+3:16:21 PM [vite] (client) hmr update /src/pages/AssessmentPage.tsx

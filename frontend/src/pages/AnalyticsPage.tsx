@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
+import { Check, PieChart as PieIcon, BarChart as BarIcon, LineChart as LineIcon, TrendingUp } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { authFetch } from '../utils/api';
 
@@ -57,7 +58,7 @@ export default function AnalyticsPage() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
-                        <BarChart size={24} />
+                        <TrendingUp size={22} />
                     </div>
                     <h1 className="text-h1" style={{ margin: 0 }}>Learning Analytics</h1>
                 </div>
@@ -77,17 +78,17 @@ export default function AnalyticsPage() {
                     <div style={{ fontSize: 36, fontWeight: 800, color: 'var(--text-primary)', marginTop: 8 }}>{stats.total_lessons || 0}</div>
                 </div>
                 <div className="card-subtle" style={{ padding: 24, position: 'relative', overflow: 'hidden' }}>
-                    <div style={{ position: 'absolute', right: -10, top: -10, opacity: 0.05 }}><PieChart size={80} /></div>
+                    <div style={{ position: 'absolute', right: -10, top: -10, opacity: 0.05 }}><PieIcon size={80} /></div>
                     <p style={{ margin: 0, fontSize: 13, color: 'var(--text-tertiary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Avg Score</p>
                     <div style={{ fontSize: 36, fontWeight: 800, color: 'var(--success)', marginTop: 8 }}>{Number(stats.avg_score || 0).toFixed(2)}%</div>
                 </div>
                 <div className="card-subtle" style={{ padding: 24, position: 'relative', overflow: 'hidden' }}>
-                    <div style={{ position: 'absolute', right: -10, top: -10, opacity: 0.05 }}><LineChart size={80} /></div>
+                    <div style={{ position: 'absolute', right: -10, top: -10, opacity: 0.05 }}><LineIcon size={80} /></div>
                     <p style={{ margin: 0, fontSize: 13, color: 'var(--text-tertiary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Study Streak</p>
                     <div style={{ fontSize: 36, fontWeight: 800, color: 'var(--warning)', marginTop: 8 }}>{stats.streak_days || 0}d</div>
                 </div>
                 <div className="card-subtle" style={{ padding: 24, position: 'relative', overflow: 'hidden' }}>
-                    <div style={{ position: 'absolute', right: -10, top: -10, opacity: 0.05 }}><BarChart size={80} /></div>
+                    <div style={{ position: 'absolute', right: -10, top: -10, opacity: 0.05 }}><BarIcon size={80} /></div>
                     <p style={{ margin: 0, fontSize: 13, color: 'var(--text-tertiary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Time Studied</p>
                     <div style={{ fontSize: 36, fontWeight: 800, color: 'var(--info)', marginTop: 8 }}>{Math.round((stats.total_time_minutes || 0) / 60)}h</div>
                 </div>

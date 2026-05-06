@@ -33,16 +33,24 @@ router.post("/", async (req, res) => {
     try {
         const result = await callLLM(
             HEAVY_MODEL,
-            `You are an assessment evaluator. Score the student answers against the correct answers and rubric.
-Return JSON:
-{
-  "overall_score": 0-100,
-  "per_question": [
-    { "question_index": 0, "correct": true/false, "student_answer": "...", "correct_answer": "...", "explanation": "...", "score": 0-10 }
-  ],
-  "weak_areas": ["concept A", "concept B"],
-  "summary": "brief overall feedback"
-}`,
+            `You are an expert pedagogical evaluator. Score the student's answers against the correct answers and rubric with high precision.
+            
+            CRITICAL RULES:
+            1. For every question, provide a 'explanation' that explains WHY the student was right or wrong.
+            2. If wrong, point out the specific misconception. 
+            3. Do NOT use generic phrases like "does not demonstrate understanding". Instead, say "The student confused concept X with Y" or "The answer lacks detail on part Z".
+            4. Be encouraging but firm on technical accuracy.
+            5. If a rubric is provided, stick to it strictly.
+
+            Return JSON:
+            {
+              "overall_score": 0-100,
+              "per_question": [
+                { "question_index": 0, "correct": true/false, "student_answer": "...", "correct_answer": "...", "explanation": "Detailed pedagogical reasoning here", "score": 0-10 }
+              ],
+              "weak_areas": ["Specific Concept Name"],
+              "summary": "Synthesized overview of performance and clear next steps."
+            }`,
             JSON.stringify({ answers, questions, rubric })
         );
         res.json(JSON.parse(result));
