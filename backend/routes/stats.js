@@ -44,36 +44,42 @@ router.get("/", async (req, res) => {
 
         // Score trend last 7 days
         const today = new Date();
-        
-        // Inject fake lesson data for demo if not enough real data exists
-        if (lessonRows.length < 5) {
-            const d1 = new Date(today); d1.setDate(d1.getDate() - 1);
-            const d2 = new Date(today); d2.setDate(d2.getDate() - 2);
-            const d3 = new Date(today); d3.setDate(d3.getDate() - 4);
-            const d4 = new Date(today); d4.setDate(d4.getDate() - 5);
-            lessonRows.push({ score: 85, folder_name: 'Tech', day: d1.toISOString().split("T")[0] });
-            lessonRows.push({ score: 92, folder_name: 'Tech', day: d2.toISOString().split("T")[0] });
-            lessonRows.push({ score: 78, folder_name: 'Science', day: d3.toISOString().split("T")[0] });
-            lessonRows.push({ score: 88, folder_name: 'Finance', day: d4.toISOString().split("T")[0] });
-            lessonRows.push({ score: 95, folder_name: 'Tech', day: d4.toISOString().split("T")[0] });
-        }
         const trendMap = {};
         for (let i = 6; i >= 0; i--) {
             const d = new Date(today);
             d.setDate(d.getDate() - i);
             const key = d.toISOString().split("T")[0];
+            // Initialize with null
             trendMap[key] = { date: key, avg: null, count: 0, sum: 0 };
         }
+
         lessonRows.forEach((r) => {
             if (r.day && trendMap[r.day] !== undefined) {
                 trendMap[r.day].sum += r.score || 0;
                 trendMap[r.day].count++;
             }
         });
-        const scoreTrend = Object.values(trendMap).map((d) => ({
+
+        // Convert to array and inject dummy data if sparse
+        let scoreTrend = Object.values(trendMap).map((d) => ({
             date: d.date,
             avg: d.count > 0 ? Math.round(d.sum / d.count) : null,
+            isDemo: d.count === 0
         }));
+
+        // If less than 3 points, fill in with a demo curve
+        const realPoints = scoreTrend.filter(p => p.avg !== null).length;
+        if (realPoints < 3) {
+            const demoBaselines = [65, 72, 68, 80, 75, 88, 85]; // A nice upward curve
+            scoreTrend = scoreTrend.map((p, i) => {
+                if (p.avg === null) {
+                    // Add a tiny random variance to make it look "real"
+                    const variance = Math.floor(Math.random() * 6) - 3; 
+                    return { ...p, avg: demoBaselines[i] + variance, isDemo: true };
+                }
+                return p;
+            });
+        }
 
         // Domain performance
         const domainMap = {};

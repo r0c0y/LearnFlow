@@ -12,3 +12,64 @@
 2:51:52 PM [vite] (client) hmr update /src/pages/AnalyticsPage.tsx
 3:05:08 PM [vite] (client) hmr update /src/pages/PreLessonPage.tsx
 3:05:17 PM [vite] (client) hmr update /src/pages/AnalyticsPage.tsx
+3:05:41 PM [vite] (client) hmr update /src/pages/AnalyticsPage.tsx
+3:05:41 PM [vite] (client) hmr update /src/pages/PreLessonPage.tsx
+3:07:10 PM [vite] (client) hmr update /src/pages/AnalyticsPage.tsx
+3:07:10 PM [vite] Internal server error: /Users/priyanshutomar/Desktop/LearnFlow/frontend/src/pages/AnalyticsPage.tsx: Unexpected token (200:0)
+
+  198 |     );
+  199 | }
+> 200 | }
+      | ^
+  Plugin: vite:react-babel
+  File: /Users/priyanshutomar/Desktop/LearnFlow/frontend/src/pages/AnalyticsPage.tsx:200:0
+  198|      );
+  199|  }
+  200|  }
+     |  ^
+      at constructor (/Users/priyanshutomar/Desktop/LearnFlow/frontend/node_modules/@babel/parser/lib/index.js:365:19)
+      at TypeScriptParserMixin.raise (/Users/priyanshutomar/Desktop/LearnFlow/frontend/node_modules/@babel/parser/lib/index.js:6599:19)
+      at TypeScriptParserMixin.unexpected (/Users/priyanshutomar/Desktop/LearnFlow/frontend/node_modules/@babel/parser/lib/index.js:6619:16)
+      at TypeScriptParserMixin.parseExprAtom (/Users/priyanshutomar/Desktop/LearnFlow/frontend/node_modules/@babel/parser/lib/index.js:11442:22)
+      at TypeScriptParserMixin.parseExprAtom (/Users/priyanshutomar/Desktop/LearnFlow/frontend/node_modules/@babel/parser/lib/index.js:4764:20)
+      at TypeScriptParserMixin.parseExprSubscripts (/Users/priyanshutomar/Desktop/LearnFlow/frontend/node_modules/@babel/parser/lib/index.js:11081:23)
+      at TypeScriptParserMixin.parseUpdate (/Users/priyanshutomar/Desktop/LearnFlow/frontend/node_modules/@babel/parser/lib/index.js:11066:21)
+      at TypeScriptParserMixin.parseMaybeUnary (/Users/priyanshutomar/Desktop/LearnFlow/frontend/node_modules/@babel/parser/lib/index.js:11046:23)
+      at TypeScriptParserMixin.parseMaybeUnary (/Users/priyanshutomar/Desktop/LearnFlow/frontend/node_modules/@babel/parser/lib/index.js:9837:18)
+      at TypeScriptParserMixin.parseMaybeUnaryOrPrivate (/Users/priyanshutomar/Desktop/LearnFlow/frontend/node_modules/@babel/parser/lib/index.js:10899:61)
+      at TypeScriptParserMixin.parseExprOps (/Users/priyanshutomar/Desktop/LearnFlow/frontend/node_modules/@babel/parser/lib/index.js:10904:23)
+      at TypeScriptParserMixin.parseMaybeConditional (/Users/priyanshutomar/Desktop/LearnFlow/frontend/node_modules/@babel/parser/lib/index.js:10881:23)
+      at TypeScriptParserMixin.parseMaybeAssign (/Users/priyanshutomar/Desktop/LearnFlow/frontend/node_modules/@babel/parser/lib/index.js:10831:21)
+      at TypeScriptParserMixin.parseMaybeAssign (/Users/priyanshutomar/Desktop/LearnFlow/frontend/node_modules/@babel/parser/lib/index.js:9786:20)
+      at TypeScriptParserMixin.parseExpressionBase (/Users/priyanshutomar/Desktop/LearnFlow/frontend/node_modules/@babel/parser/lib/index.js:10784:23)
+      at /Users/priyanshutomar/Desktop/LearnFlow/frontend/node_modules/@babel/parser/lib/index.js:10780:39
+      at TypeScriptParserMixin.allowInAnd (/Users/priyanshutomar/Desktop/LearnFlow/frontend/node_modules/@babel/parser/lib/index.js:12421:16)
+      at TypeScriptParserMixin.parseExpression (/Users/priyanshutomar/Desktop/LearnFlow/frontend/node_modules/@babel/parser/lib/index.js:10780:17)
+      at TypeScriptParserMixin.parseStatementContent (/Users/priyanshutomar/Desktop/LearnFlow/frontend/node_modules/@babel/parser/lib/index.js:12895:23)
+      at TypeScriptParserMixin.parseStatementContent (/Users/priyanshutomar/Desktop/LearnFlow/frontend/node_modules/@babel/parser/lib/index.js:9508:18)
+      at TypeScriptParserMixin.parseStatementLike (/Users/priyanshutomar/Desktop/LearnFlow/frontend/node_modules/@babel/parser/lib/index.js:12767:17)
+      at TypeScriptParserMixin.parseModuleItem (/Users/priyanshutomar/Desktop/LearnFlow/frontend/node_modules/@babel/parser/lib/index.js:12744:17)
+      at TypeScriptParserMixin.parseBlockOrModuleBlockBody (/Users/priyanshutomar/Desktop/LearnFlow/frontend/node_modules/@babel/parser/lib/index.js:13316:36)
+      at TypeScriptParserMixin.parseBlockBody (/Users/priyanshutomar/Desktop/LearnFlow/frontend/node_modules/@babel/parser/lib/index.js:13309:10)
+      at TypeScriptParserMixin.parseProgram (/Users/priyanshutomar/Desktop/LearnFlow/frontend/node_modules/@babel/parser/lib/index.js:12622:10)
+      at TypeScriptParserMixin.parseTopLevel (/Users/priyanshutomar/Desktop/LearnFlow/frontend/node_modules/@babel/parser/lib/index.js:12612:25)
+      at TypeScriptParserMixin.parse (/Users/priyanshutomar/Desktop/LearnFlow/frontend/node_modules/@babel/parser/lib/index.js:14488:25)
+      at TypeScriptParserMixin.parse (/Users/priyanshutomar/Desktop/LearnFlow/frontend/node_modules/@babel/parser/lib/index.js:10126:18)
+      at parse (/Users/priyanshutomar/Desktop/LearnFlow/frontend/node_modules/@babel/parser/lib/index.js:14522:38)
+      at parser (/Users/priyanshutomar/Desktop/LearnFlow/frontend/node_modules/@babel/core/lib/parser/index.js:41:34)
+      at parser.next (<anonymous>)
+      at normalizeFile (/Users/priyanshutomar/Desktop/LearnFlow/frontend/node_modules/@babel/core/lib/transformation/normalize-file.js:64:37)
+      at normalizeFile.next (<anonymous>)
+      at run (/Users/priyanshutomar/Desktop/LearnFlow/frontend/node_modules/@babel/core/lib/transformation/index.js:22:50)
+      at run.next (<anonymous>)
+      at transform (/Users/priyanshutomar/Desktop/LearnFlow/frontend/node_modules/@babel/core/lib/transform.js:22:33)
+      at transform.next (<anonymous>)
+      at step (/Users/priyanshutomar/Desktop/LearnFlow/frontend/node_modules/gensync/index.js:261:32)
+      at /Users/priyanshutomar/Desktop/LearnFlow/frontend/node_modules/gensync/index.js:273:13
+      at async.call.result.err.err (/Users/priyanshutomar/Desktop/LearnFlow/frontend/node_modules/gensync/index.js:223:11)
+      at /Users/priyanshutomar/Desktop/LearnFlow/frontend/node_modules/gensync/index.js:189:28
+      at /Users/priyanshutomar/Desktop/LearnFlow/frontend/node_modules/@babel/core/lib/gensync-utils/async.js:67:7
+      at /Users/priyanshutomar/Desktop/LearnFlow/frontend/node_modules/gensync/index.js:113:33
+      at step (/Users/priyanshutomar/Desktop/LearnFlow/frontend/node_modules/gensync/index.js:287:14)
+      at /Users/priyanshutomar/Desktop/LearnFlow/frontend/node_modules/gensync/index.js:273:13
+      at async.call.result.err.err (/Users/priyanshutomar/Desktop/LearnFlow/frontend/node_modules/gensync/index.js:223:11)
